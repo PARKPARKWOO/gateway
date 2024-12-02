@@ -34,5 +34,5 @@ network:
     port: ${SERVICE_PORT:8080}
 logging:
   level:
-#    root: debug
     org.woo.gateway: INFO
+    root: debug
