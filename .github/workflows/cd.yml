@@ -1,6 +1,12 @@
 name: Build image if not exists and Trigger dispatch to deploy
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select the environment to deploy (dev/prod)"
+        required: true
+        default: "dev"
+
 
 permissions:
   contents: read
@@ -84,13 +90,9 @@ jobs:
     needs: check-and-build
     runs-on: ubuntu-latest
     steps:
-      - name: Set environment variable based on branch
+      - name: Set environment variable based on input
         run: |
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            echo "DEPLOY_ENV=prod" >> $GITHUB_ENV
-          else
-            echo "DEPLOY_ENV=dev" >> $GITHUB_ENV
-          fi
+          echo "DEPLOY_ENV=${{ env.deploy_environment }}" >> $GITHUB_ENV
 
       - name: Trigger deploy dispatch
         run: |
