@@ -92,7 +92,7 @@ jobs:
     steps:
       - name: Set environment variable based on input
         run: |
-          echo "DEPLOY_ENV=${{ env.deploy_environment }}" >> $GITHUB_ENV
+          echo "DEPLOY_ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
 
       - name: Trigger deploy dispatch
         run: |
