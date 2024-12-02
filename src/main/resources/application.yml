@@ -10,7 +10,7 @@ spring:
           uri: http://${network.services.auth.host}:${network.services.port}
           predicates:
             - Host=woo-auth.duckdns.org
-            - Path=/api/v1/auth/**
+            - Path=/**
         - id: bbr-backend-route
           uri: http://${network.services.bbr.host}:${network.services.port}
           predicates:
@@ -19,7 +19,10 @@ spring:
           uri: http://${network.services.fmp.host}:${network.services.port}
           predicates:
             - Host=find-my-pet.duckdns.org
-
+        - id: auth-server-route
+          uri: http://${network.services.auth.host}:${network.services.port}
+          predicates:
+            - Path=/api/v1/auth/**
 network:
   services:
     bbr:
@@ -29,3 +32,7 @@ network:
     auth:
       host: ${AUTH_HOST:auth}
     port: ${SERVICE_PORT:8080}
+logging:
+  level:
+#    root: debug
+    org.woo.gateway: INFO
