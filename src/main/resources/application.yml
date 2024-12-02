@@ -1,0 +1,29 @@
+spring:
+  cloud:
+    gateway:
+      default-filters:
+        - AddRequestHeader=X-Request-ID, ${random.uuid}
+      routes:
+        - id: auth-server-route
+          uri: http://${network.services.auth.host}:${network.services.port}
+          predicates:
+            - Host=woo-auth.duckdns.org
+            - Path=/api/v1/auth/**
+        - id: bbr-backend-route
+          uri: http://${network.services.bbr.host}:${network.services.port}
+          predicates:
+            - Host=wooyoung.duckdns.org
+        - id: fmp-backend-route
+          uri: http://${network.services.fmp.host}:${network.services.port}
+          predicates:
+            - Host=find-my-pet.duckdns.org
+
+network:
+  services:
+    bbr:
+      host: ${BBR_HOST:bbr}
+    fmp:
+      host: ${FMP_HOST:fmp}
+    auth:
+      host: ${AUTH_HOST:auth}
+    port: ${SERVICE_PORT:8080}
