@@ -50,3 +50,9 @@ logging:
   level:
     org.woo.gateway: INFO
     root: debug
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
