@@ -3,6 +3,20 @@ spring:
     web-application-type: reactive
   cloud:
     gateway:
+      #TODO: 지금은 전부다 허용하지만 추후 application 별로 cors 정책을 다르게 가져간다.
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders: "*"
+            allowCredentials: true
       default-filters:
         - AddRequestHeader=X-Request-ID, ${random.uuid}
       routes:
