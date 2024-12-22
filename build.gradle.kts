@@ -28,9 +28,10 @@ repositories {
 }
 
 extra["springCloudVersion"] = "2024.0.0-RC1"
+val grpcVersion = "1.63.0"
 
 dependencies {
-    implementation("org.woo:domain-auth:0.0.5-SNAPSHOT")
+    implementation("org.woo:domain-auth:0.0.6-SNAPSHOT")
     implementation("org.woo:http:+")
     implementation("org.woo:mapper:+")
 //    implementation("org.woo:log:0.0.2-SNAPSHOT")
@@ -49,6 +50,17 @@ dependencies {
     // apm
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+
+    implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
+
+    // grpc
+    implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE") {
+        exclude(group = "io.grpc", module = "grpc-netty-shaded")
+        exclude(group = "io.grpc", module = "grpc-protobuf")
+//        exclude(group = "io.grpc", module = "grpc-")
+    }
+    implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
+    implementation("org.woo:grpc:0.0.6-SNAPSHOT")
 }
 
 dependencyManagement {
