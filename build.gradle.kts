@@ -54,13 +54,13 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
 
     // grpc
-    implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE") {
-        exclude(group = "io.grpc", module = "grpc-netty-shaded")
-        exclude(group = "io.grpc", module = "grpc-protobuf")
+//    implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE") {
+//        exclude(group = "io.grpc", module = "grpc-netty-shaded")
+//        exclude(group = "io.grpc", module = "grpc-protobuf")
 //        exclude(group = "io.grpc", module = "grpc-")
-    }
-    implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
-    implementation("org.woo:grpc:0.0.6-SNAPSHOT")
+//    }
+//    implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
+//    implementation("org.woo:grpc:0.0.6-SNAPSHOT")
 }
 
 dependencyManagement {
