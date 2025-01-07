@@ -15,7 +15,7 @@ class RequestLoggingFilter : GlobalFilter, Ordered {
     private val logger = LoggerFactory.getLogger(this::class.java)
     override fun filter(exchange: ServerWebExchange, chain: GatewayFilterChain): Mono<Void> {
         val request = exchange.request
-
+        
         // 요청 정보를 로깅
         logger.info(
             "Incoming request: method={}, path={}, headers={}",
