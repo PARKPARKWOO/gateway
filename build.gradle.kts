@@ -53,6 +53,8 @@ dependencies {
 
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
 
+    // log-loki
+    implementation("com.github.loki4j:loki-logback-appender:1.5.1")
     // grpc
 //    implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE") {
 //        exclude(group = "io.grpc", module = "grpc-netty-shaded")
