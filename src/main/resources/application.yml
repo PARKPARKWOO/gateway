@@ -25,16 +25,15 @@ spring:
           predicates:
             - Host=woo-auth.duckdns.org
             - Path=/api/v1/auth/**, /oauth2/**
+          order: 0
         - id: bbr-backend-route
           uri: lb://${network.services.bbr.host}
           predicates:
             - Host=wooyoung.duckdns.org
-            - Path!=/api/v1/auth/**, /oauth2/**
         - id: fmp-backend-route
           uri: lb://${network.services.fmp.host}
           predicates:
             - Host=find-my-pet.duckdns.org
-            - Path!=/api/v1/auth/**, /oauth2/**
 #        - id: auth-server-path-route
 #          uri: lb://${network.services.auth.host}
 #          predicates:
