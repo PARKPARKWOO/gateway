@@ -19,7 +19,7 @@
         </format>
     </appender>
     <property name="CONSOLE_LOG_PATTERN"
-              value="%highlight(%-5level) %date [%thread] %cyan([%C{0} :: %M :: %L]) - %msg%n"/>
+              value="%highlight(%-5level) %date [%thread] %cyan([%C{0} :: %M :: %L]) traceId=%X{X-Request-ID:-NONE} %X{exceptionName} spanId=%X{spanId:-NONE} - %msg%n"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">

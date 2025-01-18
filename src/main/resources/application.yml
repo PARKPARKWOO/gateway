@@ -5,6 +5,9 @@ spring:
     web-application-type: reactive
   cloud:
     gateway:
+      httpclient:
+        ssl:
+          use-insecure-trust-manager: true
       #TODO: 지금은 전부다 허용하지만 추후 application 별로 cors 정책을 다르게 가져간다.
       globalcors:
         cors-configurations:
@@ -22,6 +25,18 @@ spring:
       default-filters:
         - AddRequestHeader=X-Request-ID, ${random.uuid}
       routes:
+        - id: json-grpc
+          uri: https://localhost:6565
+          predicates:
+            - Path=/json/**
+          filters:
+            - GrpcAuthFilterFactory
+#            - name: JsonToGrpc
+#              args:
+##                protoDescriptor: file:proto/hello.pb
+#                protoFile: file:proto/auth.proto
+#                service: UserInfoService
+#                method: GetUserInfoByBearer
         - id: auth-server-route
           uri: lb://${network.services.auth.host}
           predicates:
@@ -53,7 +68,6 @@ network:
 logging:
   level:
     org.woo.gateway: INFO
-    root: debug
 
 management:
   endpoints:
@@ -67,3 +81,5 @@ eureka:
     fetch-registry: true
     service-url:
       defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+server:
+  port: 8081

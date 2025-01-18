@@ -27,16 +27,16 @@ repositories {
     }
 }
 
-extra["springCloudVersion"] = "2024.0.0-RC1"
+extra["springCloudVersion"] = "2024.0.0"
 val grpcVersion = "1.63.0"
 
 dependencies {
     implementation("org.woo:domain-auth:0.0.6-SNAPSHOT")
     implementation("org.woo:http:+")
     implementation("org.woo:mapper:+")
-//    implementation("org.woo:log:0.0.2-SNAPSHOT")
+    implementation("org.woo:apm:0.2.2")
 
-    implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
+//    implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
@@ -56,13 +56,14 @@ dependencies {
     // log-loki
     implementation("com.github.loki4j:loki-logback-appender:1.5.1")
     // grpc
-//    implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE") {
-//        exclude(group = "io.grpc", module = "grpc-netty-shaded")
-//        exclude(group = "io.grpc", module = "grpc-protobuf")
+    implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE") {
+        exclude(group = "io.grpc", module = "grpc-netty-shaded")
+        exclude(group = "io.grpc", module = "grpc-protobuf")
 //        exclude(group = "io.grpc", module = "grpc-")
-//    }
-//    implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
-//    implementation("org.woo:grpc:0.0.6-SNAPSHOT")
+    }
+    implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
+    implementation("io.grpc:grpc-netty:$grpcVersion")
+    implementation("org.woo:grpc:0.1.1")
 }
 
 dependencyManagement {
