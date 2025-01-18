@@ -26,8 +26,10 @@ class AuthenticateGrpcFilter(
         val bearerToken = request.headers["Authorization"]?.firstOrNull()
         val hasToken = bearerToken != null && bearerToken.startsWith("Bearer ")
         return@GatewayFilter if (hasToken) {
-            runBlocking {
-                request.requestAuthAndSetPassport(bearerToken!!)
+            runCatching {
+                runBlocking {
+                    request.requestAuthAndSetPassport(bearerToken!!)
+                }
             }
             chain.filter(exchange)
         } else {

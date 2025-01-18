@@ -63,7 +63,7 @@ dependencies {
     }
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     implementation("io.grpc:grpc-netty:$grpcVersion")
-    implementation("org.woo:grpc:0.1.1")
+    implementation("org.woo:grpc:0.1.2")
 }
 
 dependencyManagement {
