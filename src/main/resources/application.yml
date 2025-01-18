@@ -81,5 +81,4 @@ eureka:
     fetch-registry: true
     service-url:
       defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
-server:
-  port: 8081
+
