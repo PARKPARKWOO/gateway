@@ -31,7 +31,7 @@ extra["springCloudVersion"] = "2024.0.0"
 val grpcVersion = "1.63.0"
 
 dependencies {
-    implementation("org.woo:domain-auth:0.0.6-SNAPSHOT")
+    implementation("org.woo:domain-auth:0.1.1")
     implementation("org.woo:http:+")
     implementation("org.woo:mapper:+")
     implementation("org.woo:apm:0.2.2")

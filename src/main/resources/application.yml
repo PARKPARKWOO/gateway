@@ -24,19 +24,8 @@ spring:
             allowCredentials: true
       default-filters:
         - AddRequestHeader=X-Request-ID, ${random.uuid}
+        - name: AuthenticateGrpcFilter
       routes:
-        - id: json-grpc
-          uri: https://localhost:6565
-          predicates:
-            - Path=/json/**
-          filters:
-            - GrpcAuthFilterFactory
-#            - name: JsonToGrpc
-#              args:
-##                protoDescriptor: file:proto/hello.pb
-#                protoFile: file:proto/auth.proto
-#                service: UserInfoService
-#                method: GetUserInfoByBearer
         - id: auth-server-route
           uri: lb://${network.services.auth.host}
           predicates:
@@ -81,4 +70,3 @@ eureka:
     fetch-registry: true
     service-url:
       defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
-
