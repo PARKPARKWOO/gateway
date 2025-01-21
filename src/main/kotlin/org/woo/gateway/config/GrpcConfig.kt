@@ -1,5 +1,6 @@
 package org.woo.gateway.config
 
+import io.grpc.Channel
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
@@ -7,6 +8,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import org.apache.hc.client5.http.ssl.TrustAllStrategy
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ssl.SslBundle
+import org.springframework.boot.ssl.SslBundles
 import org.springframework.cloud.gateway.config.GrpcSslConfigurer
 import org.springframework.cloud.gateway.config.HttpClientProperties
 import org.springframework.cloud.gateway.config.HttpClientProperties.Ssl
@@ -34,4 +36,10 @@ class GrpcConfig(
     fun jsonToGrpc(resourceLoader: ResourceLoader, grpcSslConfigurer: GrpcSslConfigurer): JsonToGrpcGatewayFilterFactory {
         return JsonToGrpcGatewayFilterFactory(grpcSslConfigurer, resourceLoader)
     }
+
+//    @Bean
+//    fun configurer(properties: HttpClientProperties, bundles: SslBundles): GrpcSslConfigurer {
+//        properties.ssl.isUseInsecureTrustManager = true
+//        return GrpcSslConfigurer(properties.ssl, bundles)
+//    }
 }

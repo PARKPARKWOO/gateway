@@ -1,8 +1,11 @@
+import com.google.protobuf.gradle.id
+
 plugins {
     kotlin("jvm") version "1.9.25"
     kotlin("plugin.spring") version "1.9.25"
     id("org.springframework.boot") version "3.4.0"
     id("io.spring.dependency-management") version "1.1.6"
+    id("com.google.protobuf") version "0.9.4"
 }
 
 group = "org.woo"
@@ -29,7 +32,7 @@ repositories {
 
 extra["springCloudVersion"] = "2024.0.0"
 val grpcVersion = "1.63.0"
-
+val protobufVersion = "3.23.4"
 dependencies {
     implementation("org.woo:domain-auth:0.1.1")
     implementation("org.woo:http:+")
@@ -64,6 +67,13 @@ dependencies {
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     implementation("io.grpc:grpc-netty:$grpcVersion")
     implementation("org.woo:grpc:0.1.2")
+    implementation("io.grpc:protoc-gen-grpc-java:$grpcVersion")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-protobuf:2.18.2")
+
+    configurations.all {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-web")
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-tomcat")
+    }
 }
 
 dependencyManagement {
@@ -80,4 +90,27 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    systemProperty("file.encoding", "UTF-8")
+}
+
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:$protobufVersion"
+    }
+    plugins {
+        id("grpc") {
+            artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion"
+        }
+    }
+    generateProtoTasks {
+        ofSourceSet("main").forEach {
+            it.plugins {
+                id("grpc") { }
+            }
+        }
+    }
 }
