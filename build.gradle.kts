@@ -32,7 +32,8 @@ repositories {
 
 extra["springCloudVersion"] = "2024.0.0"
 val grpcVersion = "1.63.0"
-val protobufVersion = "3.23.4"
+//val protobufVersion = "3.23.4"
+val protobufVersion = "3.25.1"
 dependencies {
     implementation("org.woo:domain-auth:0.1.1")
     implementation("org.woo:http:+")

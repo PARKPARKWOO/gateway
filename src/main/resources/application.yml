@@ -44,16 +44,17 @@ spring:
             - Path=/api/v1/auth/**, /oauth2/**
           order: 0
         - id: test
-          uri: http://${network.services.auth.host}:9090
+          uri: grpc://${network.services.auth.host}:9090
           predicates:
             - Path=/test/**
           filters:
-            - name: JsonToGrpc
+            - name: CustomJsonToGrpcFilter
               args:
                 protoDescriptor: classpath:proto/test.pb
                 protoFile: classpath:proto/test.proto
                 service: GrpcTestService
                 method: GrpcTest
+
   profiles:
     active: dev
 network:
@@ -63,7 +64,7 @@ network:
     fmp:
       host: ${FMP_HOST:fmp}
     auth:
-      host: ${AUTH_HOST:auth}
+      host: ${AUTH_HOST:localhost}
     port: ${SERVICE_PORT:8080}
 logging:
   level:
@@ -84,3 +85,8 @@ eureka:
 server:
   http2:
     enabled: true
+  port: 8081
+grpc:
+  client:
+    GLOBAL:
+      negotiation-type: plaintext
