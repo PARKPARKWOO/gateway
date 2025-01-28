@@ -27,24 +27,24 @@ spring:
         - name: AuthenticateGrpcFilter
       routes:
         - id: auth-server-route
-          uri: lb://${network.services.auth.host}
+          uri: lb://${network.services.auth.name}
           predicates:
             - Host=woo-auth.duckdns.org
         - id: bbr-backend-route
-          uri: lb://${network.services.bbr.host}
+          uri: lb://${network.services.bbr.name}
           predicates:
             - Host=wooyoung.duckdns.org
         - id: fmp-backend-route
-          uri: lb://${network.services.fmp.host}
+          uri: lb://${network.services.fmp.name}
           predicates:
             - Host=find-my-pet.duckdns.org
         - id: auth-server-path-route
-          uri: lb://${network.services.auth.host}
+          uri: lb://${network.services.auth.name}
           predicates:
             - Path=/api/v1/auth/**, /oauth2/**
           order: 0
         - id: test
-          uri: grpc://${network.services.auth.host}:9090
+          uri: grpc://${network.services.auth.name}:9090
           predicates:
             - Path=/test/**
           filters:
@@ -61,10 +61,13 @@ network:
   services:
     bbr:
       host: ${BBR_HOST:bbr}
+      name: ${BBR_NAME:bbr}
     fmp:
       host: ${FMP_HOST:fmp}
+      name: ${FMP_NAME}
     auth:
       host: ${AUTH_HOST:localhost}
+      name: ${AUTH_NAME}
     port: ${SERVICE_PORT:8080}
 logging:
   level:
@@ -85,7 +88,7 @@ eureka:
 server:
   http2:
     enabled: true
-  port: 8081
+
 grpc:
   client:
     GLOBAL:
