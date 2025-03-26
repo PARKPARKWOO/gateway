@@ -95,7 +95,7 @@ eureka:
 server:
   http2:
     enabled: true
-  port: 8081
+#  port: 8081
 
 grpc:
   client:
