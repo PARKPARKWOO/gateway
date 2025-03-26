@@ -43,17 +43,21 @@ spring:
           predicates:
             - Path=/api/v1/auth/**, /oauth2/**
           order: 0
-        - id: test
-          uri: grpc://${network.services.auth.name}:9090
+        - id: storage-route
+          uri: lb://${network.services.storage.name}
           predicates:
-            - Path=/test/**
-          filters:
-            - name: CustomJsonToGrpcFilter
-              args:
-                protoDescriptor: classpath:proto/test.pb
-                protoFile: classpath:proto/test.proto
-                service: GrpcTestService
-                method: GrpcTest
+            - Host=cdn.platformholder.site
+#        - id: test
+#          uri: grpc://${network.services.auth.host  }:9090
+#          predicates:
+#            - Path=/test/**
+#          filters:
+#            - name: CustomJsonToGrpcFilter
+#              args:
+#                protoDescriptor: classpath:proto/test.pb
+#                protoFile: classpath:proto/test.proto
+#                service: GrpcTestService
+#                method: GrpcTest
 
   profiles:
     active: dev
@@ -64,10 +68,13 @@ network:
       name: ${BBR_NAME:bbr}
     fmp:
       host: ${FMP_HOST:fmp}
-      name: ${FMP_NAME}
+      name: ${FMP_NAME:fmp}
     auth:
       host: ${AUTH_HOST:localhost}
-      name: ${AUTH_NAME}
+      name: ${AUTH_NAME:auth}
+    storage:
+      host: ${STORAGE_HOST}
+      name: ${STORAGE_NAME}
     port: ${SERVICE_PORT:8080}
 logging:
   level:
@@ -88,6 +95,7 @@ eureka:
 server:
   http2:
     enabled: true
+  port: 8081
 
 grpc:
   client:
