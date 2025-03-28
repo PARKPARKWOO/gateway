@@ -1,5 +1,7 @@
 package org.woo.gateway.filter
 
+import constant.AuthConstant
+import constant.AuthConstant.AUTHORIZATION_HEADER
 import dto.UserContext
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.mono
@@ -28,7 +30,7 @@ class AuthenticateGrpcFilter(
 
     override fun apply(config: Config): GatewayFilter = GatewayFilter { exchange, chain ->
         val request: ServerHttpRequest = exchange.request
-        val bearerToken = request.headers["Authorization"]?.firstOrNull()
+        val bearerToken = request.headers[AUTHORIZATION_HEADER]?.firstOrNull()
         val hasToken = bearerToken != null && bearerToken.startsWith("Bearer ")
         return@GatewayFilter if (hasToken) {
             val modifiedExchange: ServerWebExchange = runBlocking {
@@ -58,6 +60,7 @@ class AuthenticateGrpcFilter(
             userName = passport.name,
             role = Role.valueOf(passport.role),
             email = passport.email,
+            signInApplicationId = passport.applicationId,
         )
         val userContextString = Jackson.writeValueAsString(userContext)
         val headers = HttpHeaders()

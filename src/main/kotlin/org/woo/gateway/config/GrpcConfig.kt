@@ -1,11 +1,9 @@
 package org.woo.gateway.config
 
 import io.grpc.ManagedChannel
-import io.grpc.netty.NettyChannelBuilder
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.cloud.gateway.config.GrpcSslConfigurer
-import org.springframework.cloud.gateway.filter.factory.JsonToGrpcGatewayFilterFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.io.ResourceLoader
@@ -29,11 +27,11 @@ class GrpcConfig(
     ): ChannelWrapper = ChannelWrapper(authHost, channel)
 
 
-    @Bean
-    fun jsonToGrpc(
-        resourceLoader: ResourceLoader,
-        grpcSslConfigurer: GrpcSslConfigurer,
-    ): JsonToGrpcGatewayFilterFactory {
-        return JsonToGrpcGatewayFilterFactory(grpcSslConfigurer, resourceLoader)
-    }
+//    @Bean
+//    fun jsonToGrpc(
+//        resourceLoader: ResourceLoader,
+//        grpcSslConfigurer: GrpcSslConfigurer,
+//    ): JsonToGrpcGatewayFilterFactory {
+//        return JsonToGrpcGatewayFilterFactory(grpcSslConfigurer, resourceLoader)
+//    }
 }

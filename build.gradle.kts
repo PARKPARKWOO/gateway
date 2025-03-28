@@ -30,12 +30,12 @@ repositories {
     }
 }
 
-extra["springCloudVersion"] = "2024.0.0"
+extra["springCloudVersion"] = "2024.0.1"
 val grpcVersion = "1.63.0"
 //val protobufVersion = "3.23.4"
 val protobufVersion = "3.25.1"
 dependencies {
-    implementation("org.woo:domain-auth:0.1.1")
+    implementation("org.woo:domain-auth:0.1.3")
     implementation("org.woo:http:+")
     implementation("org.woo:mapper:+")
     implementation("org.woo:apm:0.2.2")
@@ -67,7 +67,7 @@ dependencies {
     }
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     implementation("io.grpc:grpc-netty:$grpcVersion")
-    implementation("org.woo:grpc:0.1.2")
+    implementation("org.woo:grpc:0.2.1")
     implementation("io.grpc:protoc-gen-grpc-java:$grpcVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-protobuf:2.18.2")
 

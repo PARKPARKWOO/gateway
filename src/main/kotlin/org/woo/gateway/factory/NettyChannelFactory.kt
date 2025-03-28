@@ -1,7 +1,6 @@
 package org.woo.gateway.factory
 
 import io.grpc.ManagedChannel
-import io.grpc.netty.NettyChannelBuilder
 import org.springframework.stereotype.Component
 
 @Component
