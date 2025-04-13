@@ -61,6 +61,7 @@ class AuthenticateGrpcFilter(
             role = Role.valueOf(passport.role),
             email = passport.email,
             signInApplicationId = passport.applicationId,
+            applicationRole = passport.applicationRole,
         )
         val userContextString = Jackson.writeValueAsString(userContext)
         val headers = HttpHeaders()
