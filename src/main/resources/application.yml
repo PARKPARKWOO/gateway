@@ -49,6 +49,8 @@ spring:
             - Host=cdn.platformholder.site
         - id: forest
           uri: lb://${network.services.forest.name}
+          predicates:
+            - Host=forest.platformholder.site
 #        - id: test
 #          uri: grpc://${network.services.auth.host  }:9090
 #          predicates:
