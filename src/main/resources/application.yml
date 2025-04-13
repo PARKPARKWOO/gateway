@@ -47,6 +47,8 @@ spring:
           uri: lb://${network.services.storage.name}
           predicates:
             - Host=cdn.platformholder.site
+        - id: forest
+          uri: lb://${network.services.forest.name}
 #        - id: test
 #          uri: grpc://${network.services.auth.host  }:9090
 #          predicates:
@@ -75,6 +77,9 @@ network:
     storage:
       host: ${STORAGE_HOST}
       name: ${STORAGE_NAME}
+    forest:
+      host: ${FOREST_HOST}
+      name: ${FOREST_NAME}
     port: ${SERVICE_PORT:8080}
 logging:
   level:
