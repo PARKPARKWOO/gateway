@@ -3,6 +3,7 @@ package org.woo.gateway.filter
 import constant.AuthConstant
 import constant.AuthConstant.AUTHORIZATION_HEADER
 import dto.UserContext
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking

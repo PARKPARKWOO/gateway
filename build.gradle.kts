@@ -6,6 +6,7 @@ plugins {
     id("org.springframework.boot") version "3.4.0"
     id("io.spring.dependency-management") version "1.1.6"
     id("com.google.protobuf") version "0.9.4"
+    id("org.woo.plugin.version-check") version "0.0.8"
 }
 
 group = "org.woo"
@@ -35,7 +36,7 @@ val grpcVersion = "1.63.0"
 //val protobufVersion = "3.23.4"
 val protobufVersion = "3.25.1"
 dependencies {
-    implementation("org.woo:domain-auth:0.1.4")
+    implementation("org.woo:domain-auth:0.1.6")
     implementation("org.woo:http:+")
     implementation("org.woo:mapper:+")
     implementation("org.woo:apm:0.2.2")
@@ -67,7 +68,7 @@ dependencies {
     }
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     implementation("io.grpc:grpc-netty:$grpcVersion")
-    implementation("org.woo:grpc:0.2.4")
+    implementation("org.woo:grpc:0.2.9")
     implementation("io.grpc:protoc-gen-grpc-java:$grpcVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-protobuf:2.18.2")
 
@@ -75,6 +76,20 @@ dependencies {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-web")
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-tomcat")
     }
+
+    // JUnit 5
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+
+    // Mockito for Kotlin
+    testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
+
+    // Spring WebFlux Test
+    testImplementation("org.springframework.boot:spring-boot-starter-test") {
+        exclude(group = "org.junit.vintage")
+    }
+
+    // Coroutines Test
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 }
 
 dependencyManagement {
