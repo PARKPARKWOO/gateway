@@ -49,7 +49,7 @@ class AuthenticateGrpcFilter(
         }
     }
 
-    suspend fun ServerWebExchange.requestAuthAndSetPassport(bearerToken: String):ServerWebExchange = mono {
+    suspend fun ServerWebExchange.requestAuthAndSetPassport(bearerToken: String): ServerWebExchange = mono {
         val passport = authClient.getUserInfo(bearerToken)
         log().info("authenticate userId = ${passport.id}")
         setPassport(passport)
@@ -63,6 +63,7 @@ class AuthenticateGrpcFilter(
             email = passport.email,
             signInApplicationId = passport.applicationId,
             applicationRole = passport.applicationRole,
+            accessLevel = passport.accessLevel,
         )
         val userContextString = Jackson.writeValueAsString(userContext)
         val headers = HttpHeaders()
