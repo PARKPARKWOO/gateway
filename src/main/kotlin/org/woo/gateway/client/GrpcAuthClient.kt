@@ -31,11 +31,11 @@ class GrpcAuthClient(
     }
 
 
-    suspend fun getUserInfo(token: String): AuthProto.UserInfoResponse =
+    suspend fun getUserInfo(token: String): AuthProto.Passport =
         suspendCancellableCoroutine { continuation ->
             runCatching {
                 stub.withInterceptors(TokenInitializeInMetadata(token))
-                    .getUserInfoByBearer(Empty.newBuilder().build())
+                    .getPassportByBearer(Empty.newBuilder().build())
             }.onFailure { exception ->
                 log().error("Failed to fetch user info: ${exception.message}", exception)
                 continuation.resumeWithException(exception)

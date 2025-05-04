@@ -36,7 +36,7 @@ val grpcVersion = "1.63.0"
 //val protobufVersion = "3.23.4"
 val protobufVersion = "3.25.1"
 dependencies {
-    implementation("org.woo:domain-auth:0.1.9")
+    implementation("org.woo:domain-auth:0.2.2")
     implementation("org.woo:http:0.1.1")
     implementation("org.woo:mapper:0.0.2")
     implementation("org.woo:apm:0.2.3")
@@ -68,7 +68,7 @@ dependencies {
     }
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     implementation("io.grpc:grpc-netty:$grpcVersion")
-    implementation("org.woo:grpc:0.2.11")
+    implementation("org.woo:grpc:0.3.0")
     implementation("io.grpc:protoc-gen-grpc-java:$grpcVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-protobuf:2.18.2")
 

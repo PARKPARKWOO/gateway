@@ -1,24 +1,20 @@
 package org.woo.gateway.filter
 
-import constant.AuthConstant
 import constant.AuthConstant.AUTHORIZATION_HEADER
-import dto.UserContext
-import kotlinx.coroutines.coroutineScope
+import dto.Passport
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking
 import model.Role
 import org.springframework.cloud.gateway.filter.GatewayFilter
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory
-import org.springframework.core.Ordered
-import org.springframework.core.annotation.Order
 import org.springframework.http.HttpHeaders
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ServerWebExchange
 import org.woo.apm.log.log
-import org.woo.auth.grpc.AuthProto.UserInfoResponse
+import org.woo.auth.grpc.AuthProto
 import org.woo.gateway.client.GrpcAuthClient
 import org.woo.mapper.Jackson
 import java.util.UUID
@@ -52,20 +48,17 @@ class AuthenticateGrpcFilter(
     suspend fun ServerWebExchange.requestAuthAndSetPassport(bearerToken: String): ServerWebExchange = mono {
         val passport = authClient.getUserInfo(bearerToken)
         log().info("authenticate userId = ${passport.id}")
-        setPassport(passport)
+        setPassportToHeader(passport)
     }.awaitSingle()
 
-    fun ServerWebExchange.setPassport(passport: UserInfoResponse): ServerWebExchange {
-        val userContext = UserContext(
-            userId = UUID.fromString(passport.id),
-            userName = passport.name,
-            role = Role.valueOf(passport.role),
-            email = passport.email,
-            signInApplicationId = passport.applicationId,
-            applicationRole = passport.applicationRole,
-            accessLevel = passport.accessLevel,
+    fun ServerWebExchange.setPassportToHeader(passportProto: AuthProto.Passport): ServerWebExchange {
+        val passport = Passport(
+            userId = UUID.fromString(passportProto.id),
+            role = Role.valueOf(passportProto.role),
+            signInApplicationId = passportProto.applicationId.toString(),
+            userContext = null,
         )
-        val userContextString = Jackson.writeValueAsString(userContext)
+        val userContextString = Jackson.writeValueAsString(passport)
         val headers = HttpHeaders()
         headers.putAll(this.request.headers)
         headers.add("X-User-Passport", userContextString)
