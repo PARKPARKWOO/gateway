@@ -28,7 +28,10 @@ class AuthenticateGrpcFilter(
     override fun apply(config: Config): GatewayFilter = GatewayFilter { exchange, chain ->
         val request: ServerHttpRequest = exchange.request
         val bearerToken = request.headers[AUTHORIZATION_HEADER]?.firstOrNull()
-        val hasToken = bearerToken != null && bearerToken.startsWith("Bearer ")
+            ?: request.cookies?.get("accessToken")?.firstOrNull()
+                ?.value
+                ?.let { token -> "Bearer $token" }
+        val hasToken = bearerToken != null
         return@GatewayFilter if (hasToken) {
             val modifiedExchange: ServerWebExchange = runBlocking {
                 runCatching {

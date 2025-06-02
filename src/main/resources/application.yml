@@ -29,7 +29,7 @@ spring:
         - id: auth-server-route
           uri: lb://${network.services.auth.name}
           predicates:
-            - Host=woo-auth.duckdns.org
+            - Host=woo-auth.duckdns.org,cdn.platformholder.site
         - id: bbr-backend-route
           uri: lb://${network.services.bbr.name}
           predicates:
@@ -62,7 +62,6 @@ spring:
 #                protoFile: classpath:proto/test.proto
 #                service: GrpcTestService
 #                method: GrpcTest
-
   profiles:
     active: dev
 network:

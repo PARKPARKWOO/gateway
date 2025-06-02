@@ -68,7 +68,7 @@ dependencies {
     }
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     implementation("io.grpc:grpc-netty:$grpcVersion")
-    implementation("org.woo:grpc:0.3.0")
+    implementation("org.woo:grpc:0.3.1")
     implementation("io.grpc:protoc-gen-grpc-java:$grpcVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-protobuf:2.18.2")
 

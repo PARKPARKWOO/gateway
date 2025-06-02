@@ -16,6 +16,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.web.server.ServerWebExchange
 import org.woo.auth.grpc.AuthProto
+import org.woo.auth.grpc.AuthProto.Passport
 import org.woo.gateway.client.GrpcAuthClient
 import reactor.core.publisher.Mono
 import java.util.UUID
@@ -37,20 +38,17 @@ class AuthenticateGrpcFilterTest {
         val token = "Bearer valid-token"
         headers.add(HttpHeaders.AUTHORIZATION, token)
 
-        val userInfoResponse = AuthProto.UserInfoResponse.newBuilder()
-            .setId(UUID.randomUUID().toString()) // 올바르게 ID 설정
-            .setName("Test User")
-            .setRole("USER")
-            .setEmail("test@example.com")
-            .setApplicationId("app123")
-            .setApplicationRole("USER_ROLE")
+        val passport = Passport.newBuilder()
+            .setRole("USER_ROLE")
+            .setApplicationId("example-application")
+            .setId(UUID.randomUUID().toString())
             .build()
 
         `when`(mockExchange.request).thenReturn(mockRequest)
         `when`(mockRequest.headers).thenReturn(headers)
 
         // Suspend 함수 모킹: `Mono`에서 반환될 값을 제대로 설정해야 한다.
-        `when`(authClient.getUserInfo("valid-token")).thenReturn(userInfoResponse)
+        `when`(authClient.getUserInfo("valid-token")).thenReturn(passport)
 
         `when`(mockChain.filter(any(ServerWebExchange::class.java))).thenReturn(Mono.empty())
 
@@ -77,7 +75,6 @@ class AuthenticateGrpcFilterTest {
         // Act
         val filterFunction = filter.apply(AuthenticateGrpcFilter.Config())
         filterFunction.filter(mockExchange, mockChain).awaitSingleOrNull()
-
 
         // Assert
         verify(mockChain).filter(mockExchange)
