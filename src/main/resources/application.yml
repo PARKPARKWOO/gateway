@@ -29,7 +29,7 @@ spring:
         - id: auth-server-route
           uri: lb://${network.services.auth.name}
           predicates:
-            - Host=woo-auth.duckdns.org,cdn.platformholder.site
+            - Host=woo-auth.duckdns.org,auth.platformholder.site
         - id: bbr-backend-route
           uri: lb://${network.services.bbr.name}
           predicates:
