@@ -29,7 +29,7 @@ spring:
         - id: auth-server-route
           uri: lb://${network.services.auth.name}
           filters:
-            - ModifyRequestHeader=Host, auth.platformholder.site
+            - SetRequestHeader=Host, auth.platformholder.site
           predicates:
             - Host=woo-auth.duckdns.org,auth.platformholder.site
         - id: bbr-backend-route
@@ -43,7 +43,7 @@ spring:
         - id: auth-server-path-route
           uri: lb://${network.services.auth.name}
           filters:
-            - ModifyRequestHeader=Host, auth.platformholder.site
+            - SetRequestHeader=Host, auth.platformholder.site
           predicates:
             - Path=/api/v1/auth/**, /oauth2/**
           order: 0
