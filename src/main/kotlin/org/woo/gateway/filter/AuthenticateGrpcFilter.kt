@@ -31,29 +31,24 @@ class AuthenticateGrpcFilter(
             ?: request.cookies?.get("accessToken")?.firstOrNull()
                 ?.value
                 ?.let { token -> "Bearer $token" }
-        val hasToken = bearerToken != null
-        return@GatewayFilter if (hasToken) {
-            val modifiedExchange: ServerWebExchange = runBlocking {
-                runCatching {
-                    request.headers.add(AUTHORIZATION_HEADER, bearerToken)
-                    exchange.requestAuthAndSetPassport(bearerToken!!)
-                }.onFailure { exception ->
-                    log().warn("Authentication failed ${exception.message}")
-                }.getOrElse {
-                    exchange
-                }
+
+        if (bearerToken == null) {
+            return@GatewayFilter chain.filter(exchange)
+        }
+        return@GatewayFilter mono {
+            try {
+                request.headers.add(AUTHORIZATION_HEADER, bearerToken)
+                val passport = authClient.getUserInfo(bearerToken)
+                log().info("authenticate userId = ${passport.id}")
+                exchange.setPassportToHeader(passport)
+            } catch (e: Exception) {
+                log().warn("Authentication failed ${e.message}")
+                exchange
             }
-            chain.filter(modifiedExchange)
-        } else {
-            chain.filter(exchange)
+        }.flatMap { newExchange ->
+            chain.filter(newExchange)
         }
     }
-
-    suspend fun ServerWebExchange.requestAuthAndSetPassport(bearerToken: String): ServerWebExchange = mono {
-        val passport = authClient.getUserInfo(bearerToken)
-        log().info("authenticate userId = ${passport.id}")
-        setPassportToHeader(passport)
-    }.awaitSingle()
 
     fun ServerWebExchange.setPassportToHeader(passportProto: AuthProto.Passport): ServerWebExchange {
         val passport = Passport(
