@@ -35,6 +35,7 @@ class AuthenticateGrpcFilter(
         return@GatewayFilter if (hasToken) {
             val modifiedExchange: ServerWebExchange = runBlocking {
                 runCatching {
+                    request.headers.add(AUTHORIZATION_HEADER, bearerToken)
                     exchange.requestAuthAndSetPassport(bearerToken!!)
                 }.onFailure { exception ->
                     log().warn("Authentication failed ${exception.message}")
