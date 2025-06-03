@@ -21,7 +21,9 @@ spring:
               - OPTIONS
               - PATCH
             allowedHeaders: "*"
-            allowCredentials: false
+            allowCredentials: true
+            exposed-headers:
+              - "Set-Cookie"
       default-filters:
         - AddRequestHeader=X-Request-ID, ${random.uuid}
         - name: AuthenticateGrpcFilter
