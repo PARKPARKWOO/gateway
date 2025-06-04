@@ -1,6 +1,6 @@
 FROM openjdk:17-oracle
 
-ARG JAR_FILE=build/libs/*.jar
+ARG JAR_FILE=build/libs/gateway-0.0.1-SNAPSHOT.jar
 
 COPY ${JAR_FILE} app.jar
 
