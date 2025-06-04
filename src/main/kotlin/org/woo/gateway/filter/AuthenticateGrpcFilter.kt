@@ -37,7 +37,17 @@ class AuthenticateGrpcFilter(
         }
         return@GatewayFilter mono {
             try {
-                request.headers.add(AUTHORIZATION_HEADER, bearerToken)
+                val mutatedRequest = object : ServerHttpRequestDecorator(request) {
+                    override fun getHeaders(): HttpHeaders {
+                        val newHeaders = HttpHeaders()
+                        newHeaders.putAll(super.getHeaders())
+                        newHeaders.add(AUTHORIZATION_HEADER, bearerToken)
+                        return newHeaders
+                    }
+                }
+
+                val mutatedExchange = exchange.mutate().request(mutatedRequest).build()
+
                 val passport = authClient.getUserInfo(bearerToken)
                 log().info("authenticate userId = ${passport.id}")
                 exchange.setPassportToHeader(passport)
