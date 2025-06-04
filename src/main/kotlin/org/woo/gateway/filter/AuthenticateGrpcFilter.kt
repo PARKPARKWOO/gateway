@@ -50,7 +50,7 @@ class AuthenticateGrpcFilter(
 
                 val passport = authClient.getUserInfo(bearerToken)
                 log().info("authenticate userId = ${passport.id}")
-                exchange.setPassportToHeader(passport)
+                mutatedExchange.setPassportToHeader(passport)
             } catch (e: Exception) {
                 log().warn("Authentication failed ${e.message}")
                 exchange
