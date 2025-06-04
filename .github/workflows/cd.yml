@@ -80,7 +80,7 @@ jobs:
         env:
           IMAGE_NAME: ${{ env.repository_name }}
           IMAGE_TAG: ${{ env.image_tag }}
-
+          DOCKER_BUILDKIT: 0
         run: |
           docker build -f ./Dockerfile -t $IMAGE_NAME:$IMAGE_TAG .
           docker push $IMAGE_NAME:$IMAGE_TAG
