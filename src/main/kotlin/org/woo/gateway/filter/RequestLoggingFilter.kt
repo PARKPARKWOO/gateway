@@ -1,4 +1,4 @@
-package org.woo.gateway
+package org.woo.gateway.filter
 
 import org.slf4j.LoggerFactory
 import org.springframework.cloud.gateway.filter.GatewayFilterChain
@@ -11,11 +11,17 @@ import reactor.core.publisher.Mono
 
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
-class RequestLoggingFilter : GlobalFilter, Ordered {
+class RequestLoggingFilter :
+    GlobalFilter,
+    Ordered {
     private val logger = LoggerFactory.getLogger(this::class.java)
-    override fun filter(exchange: ServerWebExchange, chain: GatewayFilterChain): Mono<Void> {
+
+    override fun filter(
+        exchange: ServerWebExchange,
+        chain: GatewayFilterChain,
+    ): Mono<Void> {
         val request = exchange.request
-        
+
         // 요청 정보를 로깅
         logger.info(
             "Incoming request: method={}, path={}, headers={}",

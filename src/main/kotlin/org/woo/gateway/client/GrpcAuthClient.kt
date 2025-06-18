@@ -11,7 +11,7 @@ import org.woo.auth.grpc.TokenProto.ReissueTokenRequest
 import org.woo.auth.grpc.TokenServiceGrpcKt
 import org.woo.auth.grpc.UserInfoServiceGrpcKt
 import org.woo.gateway.factory.NettyChannelFactory
-import org.woo.grpc.TokenInitializeInMetadata
+import org.woo.grpc.interceptor.TokenInitializeInMetadata
 
 @Component
 class GrpcAuthClient(
@@ -31,13 +31,12 @@ class GrpcAuthClient(
 
     suspend fun getUserInfo(token: String): AuthProto.Passport =
         try {
-            // 코루틴 스텁의 메서드는 이미 suspend 함수이므로 직접 호출하면 됩니다.
             userInfoService
                 .withInterceptors(TokenInitializeInMetadata(token))
                 .getPassportByBearer(Empty.newBuilder().build())
         } catch (e: StatusRuntimeException) {
             log().error("Failed to fetch user info: ${e.message}", e)
-            throw e // 예외를 다시 던져서 호출한 쪽에서 처리하도록 함
+            throw e
         }
 
     suspend fun reissueToken(

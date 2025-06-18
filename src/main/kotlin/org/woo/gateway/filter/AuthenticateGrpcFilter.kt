@@ -3,6 +3,7 @@ package org.woo.gateway.filter
 import constant.AuthConstant.AUTHORIZATION_HEADER
 import dto.Passport
 import exception.ExpiredJwtException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.reactor.mono
 import model.Role
 import org.springframework.cloud.gateway.filter.GatewayFilter
@@ -11,6 +12,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseCookie
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator
+import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ServerWebExchange
 import org.woo.apm.log.log
@@ -32,21 +34,18 @@ class AuthenticateGrpcFilter(
             val response = exchange.response
             return@GatewayFilter mono {
                 val (accessToken, refreshToken) = authenticateService.extractToken(request)
-                if (accessToken == null) {
+                if (accessToken == null && refreshToken == null) {
                     return@mono exchange
                 }
 
                 val passport: AuthProto.Passport =
                     try {
-                        authenticateService.getPassport(accessToken) ?: return@mono exchange
+                        accessToken?.let {
+                            authenticateService.getPassport(accessToken) ?: return@mono exchange
+                        } ?: rotationToken(refreshToken!!, response) ?: return@mono exchange
                     } catch (e: ExpiredJwtException) {
                         refreshToken?.let {
-                            val reissueToken = authenticateService.reissueToken(it)
-                            response.apply {
-                                addCookie(createCookie("accessToken", reissueToken.accessToken, reissueToken.accessTokenExpiresIn))
-                                addCookie(createCookie("refreshToken", reissueToken.refreshToken, reissueToken.refreshTokenExpiresIn))
-                            }
-                            authenticateService.getPassport(reissueToken.accessToken)
+                            rotationToken(refreshToken, response)
                         } ?: return@mono exchange
                     }
 
@@ -86,6 +85,19 @@ class AuthenticateGrpcFilter(
             }
         return this.mutate().request(modifiedRequest).build()
     }
+
+    private suspend fun rotationToken(
+        refreshToken: String,
+        response: ServerHttpResponse,
+    ): AuthProto.Passport? =
+        coroutineScope {
+            val reissueToken = authenticateService.reissueToken(refreshToken)
+            response.apply {
+                addCookie(createCookie("accessToken", reissueToken.accessToken, reissueToken.accessTokenExpiresIn))
+                addCookie(createCookie("refreshToken", reissueToken.refreshToken, reissueToken.refreshTokenExpiresIn))
+            }
+            authenticateService.getPassport(reissueToken.accessToken)
+        }
 
     private fun createCookie(
         name: String,
