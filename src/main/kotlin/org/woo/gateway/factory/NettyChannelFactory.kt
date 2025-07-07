@@ -7,7 +7,5 @@ import org.springframework.stereotype.Component
 class NettyChannelFactory(
     val channels: List<ChannelWrapper>,
 ) {
-    fun getChannel(host: String): ManagedChannel? {
-        return channels.firstOrNull { it.service == host }?.channel
-    }
+    fun getChannel(host: String): ManagedChannel? = channels.firstOrNull { it.service == host }?.channel
 }
