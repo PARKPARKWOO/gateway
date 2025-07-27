@@ -57,6 +57,10 @@ spring:
           uri: lb://${network.services.forest.name}
           predicates:
             - Host=forest.platformholder.site
+        - id: mirror-view
+          uri: lb://${network.services.mv.name}
+          predicates:
+            - Host:mirror-view.platformholder.site
 #        - id: test
 #          uri: grpc://${network.services.auth.host  }:9090
 #          predicates:
@@ -87,6 +91,9 @@ network:
     forest:
       host: ${FOREST_HOST}
       name: ${FOREST_NAME}
+    mv:
+      host: ${MV_HOST}
+      name: ${MV_NAME}
     port: ${SERVICE_PORT:8080}
 logging:
   level:
