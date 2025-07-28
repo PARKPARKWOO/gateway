@@ -60,7 +60,7 @@ spring:
         - id: mirror-view
           uri: lb://${network.services.mv.name}
           predicates:
-            - Host:mirror-view.platformholder.site
+            - Host=mirror-view.platformholder.site
 #        - id: test
 #          uri: grpc://${network.services.auth.host  }:9090
 #          predicates:
