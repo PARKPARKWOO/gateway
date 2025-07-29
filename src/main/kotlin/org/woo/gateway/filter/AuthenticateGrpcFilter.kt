@@ -75,13 +75,15 @@ class AuthenticateGrpcFilter(
                 userContext = null,
             )
         val userContextString = Jackson.writeValueAsString(passport)
-        val headers = HttpHeaders()
-        headers.putAll(this.request.headers)
-        headers.add("X-User-Passport", userContextString)
 
         val modifiedRequest =
             object : ServerHttpRequestDecorator(this.request) {
-                override fun getHeaders(): HttpHeaders = headers
+                override fun getHeaders(): HttpHeaders {
+                    val newHeaders = HttpHeaders()
+                    newHeaders.putAll(super.getHeaders())
+                    newHeaders.add("X-User-Passport", userContextString)
+                    return newHeaders
+                }
             }
         return this.mutate().request(modifiedRequest).build()
     }
