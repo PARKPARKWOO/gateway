@@ -8,13 +8,10 @@ import kotlinx.coroutines.reactor.mono
 import model.Role
 import org.springframework.cloud.gateway.filter.GatewayFilter
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory
-import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseCookie
 import org.springframework.http.server.reactive.ServerHttpRequest
-import org.springframework.http.server.reactive.ServerHttpRequestDecorator
 import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.stereotype.Component
-import org.springframework.web.server.ServerWebExchange
 import org.woo.apm.log.log
 import org.woo.auth.grpc.AuthProto
 import org.woo.gateway.service.AuthenticateService
@@ -49,24 +46,16 @@ class AuthenticateGrpcFilter(
                         } ?: return@mono exchange
                     }
 
-                val mutatedRequest =
-                    object : ServerHttpRequestDecorator(request) {
-                        override fun getHeaders(): HttpHeaders {
-                            val newHeaders = HttpHeaders()
-                            newHeaders.putAll(super.getHeaders())
-                            newHeaders.add(AUTHORIZATION_HEADER, accessToken)
-                            return newHeaders
-                        }
-                    }
-                val mutatedExchange = exchange.mutate().request(mutatedRequest).build()
+                val mutatedRequest = request.mutate().header(AUTHORIZATION_HEADER, accessToken).build()
+                val includePassportHeader = mutatedRequest.setPassportToHeader(passport)
                 log().info("authenticate userId = ${passport.id}")
-                mutatedExchange.setPassportToHeader(passport)
+                exchange.mutate().request(includePassportHeader).build()
             }.flatMap { newExchange ->
                 chain.filter(newExchange)
             }
         }
 
-    fun ServerWebExchange.setPassportToHeader(passportProto: AuthProto.Passport): ServerWebExchange {
+    fun ServerHttpRequest.setPassportToHeader(passportProto: AuthProto.Passport): ServerHttpRequest {
         val passport =
             Passport(
                 userId = UUID.fromString(passportProto.id),
@@ -75,17 +64,10 @@ class AuthenticateGrpcFilter(
                 userContext = null,
             )
         val userContextString = Jackson.writeValueAsString(passport)
-
-        val modifiedRequest =
-            object : ServerHttpRequestDecorator(this.request) {
-                override fun getHeaders(): HttpHeaders {
-                    val newHeaders = HttpHeaders()
-                    newHeaders.putAll(super.getHeaders())
-                    newHeaders.add("X-User-Passport", userContextString)
-                    return newHeaders
-                }
-            }
-        return this.mutate().request(modifiedRequest).build()
+        return this
+            .mutate()
+            .header("X-User-Passport", userContextString)
+            .build()
     }
 
     private suspend fun rotationToken(
