@@ -8,6 +8,7 @@ import kotlinx.coroutines.reactor.mono
 import model.Role
 import org.springframework.cloud.gateway.filter.GatewayFilter
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory
+import org.springframework.cloud.gateway.support.ServerWebExchangeUtils
 import org.springframework.http.ResponseCookie
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpResponse
@@ -23,12 +24,21 @@ import java.util.UUID
 class AuthenticateGrpcFilter(
     private val authenticateService: AuthenticateService,
 ) : AbstractGatewayFilterFactory<AuthenticateGrpcFilter.Config>(Config::class.java) {
+    companion object {
+        val NO_AUTHENTICATE_ROUTE_IDS: Array<String> = arrayOf("oauth-route")
+    }
+
     class Config
 
     override fun apply(config: Config): GatewayFilter =
         GatewayFilter { exchange, chain ->
+            val routeId = exchange.getAttribute<String>(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR)
             val request: ServerHttpRequest = exchange.request
             val response = exchange.response
+            if (NO_AUTHENTICATE_ROUTE_IDS.contains(routeId)) {
+                return@GatewayFilter chain.filter(exchange)
+            }
+
             return@GatewayFilter mono {
                 val (accessToken, refreshToken) = authenticateService.extractToken(request)
                 if (accessToken == null && refreshToken == null) {

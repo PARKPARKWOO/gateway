@@ -42,7 +42,7 @@ spring:
           uri: lb://${network.services.fmp.name}
           predicates:
             - Host=find-my-pet.duckdns.org
-        - id: auth-server-path-route
+        - id: oauth-route
           uri: lb://${network.services.auth.name}
           filters:
             - SetRequestHeader=Host, auth.platformholder.site
