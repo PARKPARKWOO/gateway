@@ -8,6 +8,7 @@ import kotlinx.coroutines.reactor.mono
 import model.Role
 import org.springframework.cloud.gateway.filter.GatewayFilter
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory
+import org.springframework.cloud.gateway.route.Route
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils
 import org.springframework.http.ResponseCookie
 import org.springframework.http.server.reactive.ServerHttpRequest
@@ -32,7 +33,7 @@ class AuthenticateGrpcFilter(
 
     override fun apply(config: Config): GatewayFilter =
         GatewayFilter { exchange, chain ->
-            val routeId = exchange.getAttribute<String>(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR)
+            val routeId = exchange.getAttribute<Route>(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR)?.id
             val request: ServerHttpRequest = exchange.request
             val response = exchange.response
             if (NO_AUTHENTICATE_ROUTE_IDS.contains(routeId)) {
