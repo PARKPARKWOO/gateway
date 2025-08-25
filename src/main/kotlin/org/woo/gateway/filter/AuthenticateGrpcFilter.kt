@@ -3,7 +3,6 @@ package org.woo.gateway.filter
 import constant.AuthConstant.AUTHORIZATION_HEADER
 import dto.Passport
 import exception.ExpiredJwtException
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.reactor.mono
 import model.Role
 import org.springframework.cloud.gateway.filter.GatewayFilter
@@ -85,14 +84,46 @@ class AuthenticateGrpcFilter(
         refreshToken: String,
         response: ServerHttpResponse,
     ): AuthProto.Passport? =
-        coroutineScope {
+        runCatching {
             val reissueToken = authenticateService.reissueToken(refreshToken)
             response.apply {
                 addCookie(createCookie("accessToken", reissueToken.accessToken, reissueToken.accessTokenExpiresIn))
-                addCookie(createCookie("refreshToken", reissueToken.refreshToken, reissueToken.refreshTokenExpiresIn))
+                addCookie(
+                    createCookie(
+                        "refreshToken",
+                        reissueToken.refreshToken,
+                        reissueToken.refreshTokenExpiresIn,
+                    ),
+                )
             }
             authenticateService.getPassport(reissueToken.accessToken)
-        }
+        }.onFailure {
+            response.clearAuthCookie()
+        }.getOrNull()
+
+    private fun ServerHttpResponse.clearAuthCookie() {
+        this.addCookie(
+            ResponseCookie
+                .from("accessToken", "")
+                .path("/")
+                .maxAge(Duration.ZERO) // 삭제
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Lax")
+                .build(),
+        )
+
+        this.addCookie(
+            ResponseCookie
+                .from("refreshToken", "")
+                .path("/")
+                .maxAge(Duration.ZERO) // 삭제
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Lax")
+                .build(),
+        )
+    }
 
     private fun createCookie(
         name: String,
