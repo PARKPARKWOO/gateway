@@ -45,10 +45,11 @@ class AuthenticateGrpcFilter(
                     return@mono exchange
                 }
 
-                val passport: AuthProto.Passport =
+                val (passport, newAccessToken) =
                     try {
                         accessToken?.let {
-                            authenticateService.getPassport(accessToken) ?: return@mono exchange
+                            val passport = authenticateService.getPassport(accessToken) ?: return@mono exchange
+                            Pair(passport, accessToken)
                         } ?: rotationToken(refreshToken!!, response) ?: return@mono exchange
                     } catch (e: ExpiredJwtException) {
                         refreshToken?.let {
@@ -56,7 +57,7 @@ class AuthenticateGrpcFilter(
                         } ?: return@mono exchange
                     }
 
-                val mutatedRequest = request.mutate().header(AUTHORIZATION_HEADER, accessToken).build()
+                val mutatedRequest = request.mutate().header(AUTHORIZATION_HEADER, newAccessToken).build()
                 val includePassportHeader = mutatedRequest.setPassportToHeader(passport)
                 log().info("authenticate userId = ${passport.id}")
                 exchange.mutate().request(includePassportHeader).build()
@@ -83,11 +84,12 @@ class AuthenticateGrpcFilter(
     private suspend fun rotationToken(
         refreshToken: String,
         response: ServerHttpResponse,
-    ): AuthProto.Passport? =
+    ): Pair<AuthProto.Passport, String>? =
         runCatching {
             val reissueToken = authenticateService.reissueToken(refreshToken)
+            val newAccessToken = reissueToken.accessToken
             response.apply {
-                addCookie(createCookie("accessToken", reissueToken.accessToken, reissueToken.accessTokenExpiresIn))
+                addCookie(createCookie("accessToken", newAccessToken, reissueToken.accessTokenExpiresIn))
                 addCookie(
                     createCookie(
                         "refreshToken",
@@ -96,7 +98,9 @@ class AuthenticateGrpcFilter(
                     ),
                 )
             }
-            authenticateService.getPassport(reissueToken.accessToken)
+            authenticateService.getPassport(newAccessToken)?.let { passport ->
+                Pair(passport, newAccessToken)
+            }
         }.onFailure {
             response.clearAuthCookie()
         }.getOrNull()
