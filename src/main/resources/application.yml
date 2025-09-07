@@ -4,10 +4,25 @@ spring:
   main:
     web-application-type: reactive
   cloud:
+    loadbalancer:
+      configurations: health-check
+      health-check:
+        interval: 10s
+        path:
+          default: /actuator/health
+
     gateway:
       httpclient:
         ssl:
           use-insecure-trust-manager: true
+        connect-timeout: 5000
+        pool:
+          type: fixed
+          eviction-interval: 10
+          max-connections: 500
+          acquire-timeout: 5
+          max-idle-time: 15s
+
       #TODO: 지금은 전부다 허용하지만 추후 application 별로 cors 정책을 다르게 가져간다.
       globalcors:
         cors-configurations:
