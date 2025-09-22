@@ -63,7 +63,7 @@ spring:
             - SetRequestHeader=Host, auth.platformholder.site
           predicates:
             - Path=/api/v1/auth/**, /oauth2/**
-          order: 0
+          order: -1
         - id: storage-route
           uri: lb://${network.services.storage.name}
           predicates:
