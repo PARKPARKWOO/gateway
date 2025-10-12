@@ -5,11 +5,14 @@ spring:
     web-application-type: reactive
   cloud:
     loadbalancer:
+      cache:
+        ttl: 10s
       configurations: health-check
       health-check:
         interval: 10s
         path:
           default: /actuator/health
+        refetch-instances: true
 
     gateway:
       httpclient:
@@ -22,7 +25,6 @@ spring:
           max-connections: 500
           acquire-timeout: 5
           max-idle-time: 15s
-
       #TODO: 지금은 전부다 허용하지만 추후 application 별로 cors 정책을 다르게 가져간다.
       globalcors:
         cors-configurations:
@@ -76,7 +78,7 @@ spring:
           uri: lb://${network.services.mv.name}
           predicates:
             - Host=mirror-view.platformholder.site
-#        - id: test
+  #        - id: test
 #          uri: grpc://${network.services.auth.host  }:9090
 #          predicates:
 #            - Path=/test/**
@@ -129,6 +131,11 @@ eureka:
     fetch-registry: true
     service-url:
       defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+    registry-fetch-interval-seconds: 5
+  instance:
+    lease-expiration-duration-in-seconds: 20
+    lease-renewal-interval-in-seconds: 10
+
 server:
   http2:
     enabled: true
