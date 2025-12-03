@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-oracle
+FROM eclipse-temurin:17-jdk
 
 ARG JAR_FILE=build/libs/gateway-0.0.1-SNAPSHOT.jar
 
