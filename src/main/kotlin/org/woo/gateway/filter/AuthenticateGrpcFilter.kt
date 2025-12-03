@@ -26,6 +26,7 @@ class AuthenticateGrpcFilter(
 ) : AbstractGatewayFilterFactory<AuthenticateGrpcFilter.Config>(Config::class.java) {
     companion object {
         val NO_AUTHENTICATE_ROUTE_IDS: Array<String> = arrayOf("oauth-route")
+        private const val REVOKE_REQUEST = "/token/revoke"
     }
 
     class Config
@@ -35,9 +36,12 @@ class AuthenticateGrpcFilter(
             val routeId = exchange.getAttribute<Route>(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR)?.id
             val request: ServerHttpRequest = exchange.request
             val response = exchange.response
-            if (NO_AUTHENTICATE_ROUTE_IDS.contains(routeId)) {
+            val path = request.path.pathWithinApplication().value()
+            // OAuth2 관련 경로와 /login 경로는 인증 체크를 건너뜀
+            if (NO_AUTHENTICATE_ROUTE_IDS.contains(routeId) || path.startsWith("/login")) {
                 return@GatewayFilter chain.filter(exchange)
             }
+
 
             return@GatewayFilter mono {
                 val (accessToken, refreshToken) = authenticateService.extractToken(request)

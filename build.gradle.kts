@@ -39,7 +39,7 @@ dependencies {
     implementation("org.woo:domain-auth:0.2.2")
     implementation("org.woo:http:0.2.1")
     implementation("org.woo:mapper:0.0.2")
-    implementation("org.woo:apm:0.2.3")
+    implementation("org.woo:apm:0.2.7")
 
 //    implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
@@ -68,7 +68,7 @@ dependencies {
     }
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     implementation("io.grpc:grpc-netty:$grpcVersion")
-    implementation("org.woo:grpc:0.5.0")
+    implementation("org.woo:grpc:0.7.0")
     implementation("io.grpc:protoc-gen-grpc-java:$grpcVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-protobuf:2.18.2")
 
