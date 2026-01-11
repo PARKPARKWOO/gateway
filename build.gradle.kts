@@ -58,6 +58,10 @@ dependencies {
 
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
 
+    // swagger-ui (Gateway 통합)
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
     // log-loki
     implementation("com.github.loki4j:loki-logback-appender:1.5.1")
     // grpc

@@ -78,6 +78,38 @@ spring:
           uri: lb://${network.services.mv.name}
           predicates:
             - Host=mirror-view.platformholder.site
+        # Swagger API Docs 프록시 라우팅
+        - id: swagger-api-docs-auth
+          uri: lb://${network.services.auth.name}
+          predicates:
+            - Path=/v3/api-docs/auth/**
+          filters:
+            - RewritePath=/v3/api-docs/auth(?<segment>.*), /v3/api-docs${segment}
+            - SetRequestHeader=Host, auth.platformholder.site
+        - id: swagger-api-docs-bbr
+          uri: lb://${network.services.bbr.name}
+          predicates:
+            - Path=/v3/api-docs/bbr/**
+          filters:
+            - RewritePath=/v3/api-docs/bbr(?<segment>.*), /v3/api-docs${segment}
+        - id: swagger-api-docs-fmp
+          uri: lb://${network.services.fmp.name}
+          predicates:
+            - Path=/v3/api-docs/fmp/**
+          filters:
+            - RewritePath=/v3/api-docs/fmp(?<segment>.*), /v3/api-docs${segment}
+        - id: swagger-api-docs-forest
+          uri: lb://${network.services.forest.name}
+          predicates:
+            - Path=/v3/api-docs/forest/**
+          filters:
+            - RewritePath=/v3/api-docs/forest(?<segment>.*), /v3/api-docs${segment}
+        - id: swagger-api-docs-mv
+          uri: lb://${network.services.mv.name}
+          predicates:
+            - Path=/v3/api-docs/mv/**
+          filters:
+            - RewritePath=/v3/api-docs/mv(?<segment>.*), /v3/api-docs${segment}
   #        - id: test
 #          uri: grpc://${network.services.auth.host  }:9090
 #          predicates:
@@ -140,6 +172,30 @@ server:
   http2:
     enabled: true
 #  port: 8081
+
+# Swagger 설정
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    urls:
+      - name: Auth Service
+        url: /v3/api-docs/auth
+      - name: BBR Service
+        url: /v3/api-docs/bbr
+      - name: FMP Service
+        url: /v3/api-docs/fmp
+      - name: Forest Service
+        url: /v3/api-docs/forest
+      - name: Mirror View Service
+        url: /v3/api-docs/mv
+
+gateway:
+  swagger:
+    enabled: ${SWAGGER_ENABLED:true}
 
 grpc:
   client:

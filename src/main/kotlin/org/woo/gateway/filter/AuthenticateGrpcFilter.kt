@@ -6,6 +6,7 @@ import exception.ExpiredJwtException
 import kotlinx.coroutines.reactor.mono
 import model.Role
 import org.springframework.cloud.gateway.filter.GatewayFilter
+import org.springframework.cloud.gateway.filter.GatewayFilterChain
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory
 import org.springframework.cloud.gateway.route.Route
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseCookie
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.stereotype.Component
+import org.springframework.web.server.ServerWebExchange
 import org.woo.apm.log.log
 import org.woo.auth.grpc.AuthProto
 import org.woo.gateway.service.AuthenticateService
@@ -25,25 +27,27 @@ class AuthenticateGrpcFilter(
     private val authenticateService: AuthenticateService,
 ) : AbstractGatewayFilterFactory<AuthenticateGrpcFilter.Config>(Config::class.java) {
     companion object {
-        val NO_AUTHENTICATE_ROUTE_IDS: Array<String> = arrayOf("oauth-route")
-        private const val REVOKE_REQUEST = "/token/revoke"
+        private val NO_AUTHENTICATE_ROUTE_IDS = setOf("oauth-route")
+        private val NO_AUTHENTICATE_PATH_PREFIXES = setOf(
+            "/swagger-ui.html",
+            "/swagger-ui/",
+            "/v3/api-docs",
+            "/webjars/",
+            "/login"
+        )
     }
 
     class Config
 
     override fun apply(config: Config): GatewayFilter =
         GatewayFilter { exchange, chain ->
-            val routeId = exchange.getAttribute<Route>(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR)?.id
-            val request: ServerHttpRequest = exchange.request
-            val response = exchange.response
-            val path = request.path.pathWithinApplication().value()
-            // OAuth2 관련 경로와 /login 경로는 인증 체크를 건너뜀
-            if (NO_AUTHENTICATE_ROUTE_IDS.contains(routeId) || path.startsWith("/login")) {
+            if (shouldSkipAuthentication(exchange)) {
                 return@GatewayFilter chain.filter(exchange)
             }
 
-
             return@GatewayFilter mono {
+                val request = exchange.request
+                val response = exchange.response
                 val (accessToken, refreshToken) = authenticateService.extractToken(request)
                 if (accessToken == null && refreshToken == null) {
                     return@mono exchange
@@ -69,6 +73,21 @@ class AuthenticateGrpcFilter(
                 chain.filter(newExchange)
             }
         }
+
+    private fun shouldSkipAuthentication(exchange: ServerWebExchange): Boolean {
+        val routeId = exchange.getAttribute<Route>(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR)?.id
+        if (routeId in NO_AUTHENTICATE_ROUTE_IDS) {
+            return true
+        }
+        
+        val path = try {
+            exchange.request.path.pathWithinApplication().value()
+        } catch (e: Exception) {
+            return false
+        }
+
+        return NO_AUTHENTICATE_PATH_PREFIXES.any { path.startsWith(it) }
+    }
 
     fun ServerHttpRequest.setPassportToHeader(passportProto: AuthProto.Passport): ServerHttpRequest {
         val passport =

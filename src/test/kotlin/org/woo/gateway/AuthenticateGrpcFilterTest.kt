@@ -5,10 +5,12 @@ import exception.ExpiredJwtException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.springframework.cloud.gateway.filter.GatewayFilterChain
+import org.springframework.cloud.gateway.route.Route
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.web.server.ServerWebExchange
@@ -32,6 +34,7 @@ class AuthenticateGrpcFilterTest {
 
             `when`(mockExchange.request).thenReturn(mockRequest)
             `when`(mockExchange.response).thenReturn(mockResponse)
+            `when`(mockExchange.getAttribute<Route>(any())).thenReturn(null)
             `when`(authenticateService.extractToken(mockRequest)).thenReturn(Pair(null, null))
             `when`(mockChain.filter(mockExchange)).thenReturn(Mono.empty())
 
@@ -56,6 +59,7 @@ class AuthenticateGrpcFilterTest {
 
             `when`(mockExchange.request).thenReturn(mockRequest)
             `when`(mockExchange.response).thenReturn(mockResponse)
+            `when`(mockExchange.getAttribute<Route>(any())).thenReturn(null)
             `when`(authenticateService.extractToken(mockRequest)).thenReturn(Pair(accessToken, null))
             `when`(authenticateService.getPassport(accessToken)).thenThrow(ExpiredJwtException(ErrorCode.EXPIRED_JWT, null))
             `when`(mockChain.filter(mockExchange)).thenReturn(Mono.empty())
@@ -84,6 +88,7 @@ class AuthenticateGrpcFilterTest {
 
             `when`(mockExchange.request).thenReturn(mockRequest)
             `when`(mockExchange.response).thenReturn(mockResponse)
+            `when`(mockExchange.getAttribute<Route>(any())).thenReturn(null)
             `when`(authenticateService.extractToken(mockRequest)).thenReturn(Pair(accessToken, refreshToken))
             `when`(authenticateService.getPassport(accessToken)).thenReturn(null)
             `when`(mockChain.filter(mockExchange)).thenReturn(Mono.empty())
