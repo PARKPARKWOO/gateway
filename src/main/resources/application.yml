@@ -54,7 +54,7 @@ spring:
         - id: bbr-backend-route
           uri: lb://${network.services.bbr.name}
           predicates:
-            - Host=wooyoung.duckdns.org
+            - Host=bbr.platformholder.site
         - id: fmp-backend-route
           uri: lb://${network.services.fmp.name}
           predicates:
@@ -110,6 +110,12 @@ spring:
             - Path=/v3/api-docs/mv/**
           filters:
             - RewritePath=/v3/api-docs/mv(?<segment>.*), /v3/api-docs${segment}
+        - id: swagger-api-docs-spring-ai
+          uri: lb://${network.services.spring-ai.name}
+          predicates:
+            - Path=/v3/api-docs/spring-ai/**
+          filters:
+            - RewritePath=/v3/api-docs/spring-ai(?<segment>.*), /v3/api-docs${segment}
   #        - id: test
 #          uri: grpc://${network.services.auth.host  }:9090
 #          predicates:
@@ -143,6 +149,9 @@ network:
     mv:
       host: ${MV_HOST}
       name: ${MV_NAME}
+    spring-ai:
+      host: ${SPRING_AI_HOST:spring-ai}
+      name: ${SPRING_AI_NAME:spring-ai}
     port: ${SERVICE_PORT:8080}
 logging:
   level:
@@ -192,6 +201,8 @@ springdoc:
         url: /v3/api-docs/forest
       - name: Mirror View Service
         url: /v3/api-docs/mv
+      - name: Spring AI Service
+        url: /v3/api-docs/spring-ai
 
 gateway:
   swagger:

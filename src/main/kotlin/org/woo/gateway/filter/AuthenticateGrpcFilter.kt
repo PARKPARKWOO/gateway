@@ -6,7 +6,6 @@ import exception.ExpiredJwtException
 import kotlinx.coroutines.reactor.mono
 import model.Role
 import org.springframework.cloud.gateway.filter.GatewayFilter
-import org.springframework.cloud.gateway.filter.GatewayFilterChain
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory
 import org.springframework.cloud.gateway.route.Route
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils
@@ -28,13 +27,14 @@ class AuthenticateGrpcFilter(
 ) : AbstractGatewayFilterFactory<AuthenticateGrpcFilter.Config>(Config::class.java) {
     companion object {
         private val NO_AUTHENTICATE_ROUTE_IDS = setOf("oauth-route")
-        private val NO_AUTHENTICATE_PATH_PREFIXES = setOf(
-            "/swagger-ui.html",
-            "/swagger-ui/",
-            "/v3/api-docs",
-            "/webjars/",
-            "/login"
-        )
+        private val NO_AUTHENTICATE_PATH_PREFIXES =
+            setOf(
+                "/swagger-ui.html",
+                "/swagger-ui/",
+                "/v3/api-docs",
+                "/webjars/",
+                "/login",
+            )
     }
 
     class Config
@@ -79,12 +79,15 @@ class AuthenticateGrpcFilter(
         if (routeId in NO_AUTHENTICATE_ROUTE_IDS) {
             return true
         }
-        
-        val path = try {
-            exchange.request.path.pathWithinApplication().value()
-        } catch (e: Exception) {
-            return false
-        }
+
+        val path =
+            try {
+                exchange.request.path
+                    .pathWithinApplication()
+                    .value()
+            } catch (e: Exception) {
+                return false
+            }
 
         return NO_AUTHENTICATE_PATH_PREFIXES.any { path.startsWith(it) }
     }
