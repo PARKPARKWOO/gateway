@@ -116,6 +116,10 @@ spring:
             - Path=/v3/api-docs/spring-ai/**
           filters:
             - RewritePath=/v3/api-docs/spring-ai(?<segment>.*), /v3/api-docs${segment}
+        - id: backoffice
+          uri: lb://${network.services.backoffice.name}
+          predicates:
+            - Host=backoffice.platformholder.site
   #        - id: test
 #          uri: grpc://${network.services.auth.host  }:9090
 #          predicates:
@@ -152,6 +156,9 @@ network:
     spring-ai:
       host: ${SPRING_AI_HOST:spring-ai}
       name: ${SPRING_AI_NAME:spring-ai}
+    backoffice:
+      host: ${BACKOFFICE_HOST:backoffice-bff}
+      name: ${BACKOFFICE_NAME:backoffice-bff}
     port: ${SERVICE_PORT:8080}
 logging:
   level:
@@ -203,6 +210,8 @@ springdoc:
         url: /v3/api-docs/mv
       - name: Spring AI Service
         url: /v3/api-docs/spring-ai
+      - name: Backoffice Service
+        url: /v3/api-docs/backoffice
 
 gateway:
   swagger:
