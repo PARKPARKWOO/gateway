@@ -110,12 +110,6 @@ spring:
             - Path=/v3/api-docs/mv/**
           filters:
             - RewritePath=/v3/api-docs/mv(?<segment>.*), /v3/api-docs${segment}
-        - id: swagger-api-docs-spring-ai
-          uri: lb://${network.services.spring-ai.name}
-          predicates:
-            - Path=/v3/api-docs/spring-ai/**
-          filters:
-            - RewritePath=/v3/api-docs/spring-ai(?<segment>.*), /v3/api-docs${segment}
         - id: backoffice
           uri: lb://${network.services.backoffice.name}
           predicates:
@@ -153,9 +147,6 @@ network:
     mv:
       host: ${MV_HOST}
       name: ${MV_NAME}
-    spring-ai:
-      host: ${SPRING_AI_HOST:spring-ai}
-      name: ${SPRING_AI_NAME:spring-ai}
     backoffice:
       host: ${BACKOFFICE_HOST:backoffice-bff}
       name: ${BACKOFFICE_NAME:backoffice-bff}
@@ -208,10 +199,6 @@ springdoc:
         url: /v3/api-docs/forest
       - name: Mirror View Service
         url: /v3/api-docs/mv
-      - name: Spring AI Service
-        url: /v3/api-docs/spring-ai
-      - name: Backoffice Service
-        url: /v3/api-docs/backoffice
 
 gateway:
   swagger:
