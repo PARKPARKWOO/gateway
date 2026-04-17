@@ -58,7 +58,7 @@ spring:
         - id: fmp-backend-route
           uri: lb://${network.services.fmp.name}
           predicates:
-            - Host=find-my-pet.duckdns.org
+            - Host=fmp.platformholder.site
         - id: oauth-route
           uri: lb://${network.services.auth.name}
           filters:
@@ -79,13 +79,6 @@ spring:
           predicates:
             - Host=mirror-view.platformholder.site
         # Swagger API Docs 프록시 라우팅
-        - id: swagger-api-docs-auth
-          uri: lb://${network.services.auth.name}
-          predicates:
-            - Path=/v3/api-docs/auth/**
-          filters:
-            - RewritePath=/v3/api-docs/auth(?<segment>.*), /v3/api-docs${segment}
-            - SetRequestHeader=Host, auth.platformholder.site
         - id: swagger-api-docs-bbr
           uri: lb://${network.services.bbr.name}
           predicates:
@@ -189,8 +182,6 @@ springdoc:
     enabled: true
     path: /swagger-ui.html
     urls:
-      - name: Auth Service
-        url: /v3/api-docs/auth
       - name: BBR Service
         url: /v3/api-docs/bbr
       - name: FMP Service
