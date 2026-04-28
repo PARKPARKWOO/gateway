@@ -25,11 +25,15 @@ spring:
           max-connections: 500
           acquire-timeout: 5
           max-idle-time: 15s
-      #TODO: 지금은 전부다 허용하지만 추후 application 별로 cors 정책을 다르게 가져간다.
+      # CORS-1: 명시적 origin 화이트리스트. SameSite=None + 자격증명 쿠키 환경에서는 와일드카드 금지.
+      # 추후 application_domain 레지스트리(auth-server) 동적 로딩으로 전환 예정.
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOriginPatterns: "*"
+            allowedOriginPatterns:
+              - "https://*.platformholder.site"
+              - "http://localhost:[*]"
+              - "https://localhost:[*]"
             allowedMethods:
               - GET
               - POST
