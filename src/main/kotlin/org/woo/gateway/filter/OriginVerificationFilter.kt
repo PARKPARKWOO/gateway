@@ -58,6 +58,15 @@ class OriginVerificationFilter : WebFilter {
             return chain.filter(exchange)
         }
 
+        // CSRF 는 "쿠키 자동 첨부" 때문에 발생. Authorization 헤더 인증은 다른 사이트가 헤더를
+        // 박을 수 없으므로 CSRF 노출 X. 따라서 토큰 헤더 인증은 Origin 검증을 면제한다.
+        // 모바일 앱(BBR/mirror-view) 등 native 클라이언트는 Origin 헤더를 안 보내지만 Authorization
+        // 헤더로 인증하므로 이 분기로 통과.
+        val hasAuthHeader = !request.headers.getFirst("Authorization").isNullOrBlank()
+        if (hasAuthHeader) {
+            return chain.filter(exchange)
+        }
+
         val origin = request.headers.getFirst("Origin")
         val referer = request.headers.getFirst("Referer")
         val candidate = origin ?: referer
