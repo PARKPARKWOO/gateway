@@ -36,11 +36,17 @@ class OriginVerificationFilter : WebFilter {
          * 외부 IdP 콜백 등 Origin 헤더 없이 들어와도 정상인 경로.
          * Spring Security 의 oauth2Login 콜백은 GET 이지만, 자체 토큰 교환 등 POST 로 외부에서
          * 들어오는 경로가 추가되면 여기에 등록.
+         *
+         * BBR/MV 모바일 앱의 자체 토큰 교환·재발급은 native client 라 Origin 헤더가 없고
+         * 첫 호출이라 Authorization 헤더도 없어서 CSRF 가드를 통과하지 못함 — bypass 등록.
+         * (둘 다 인증 entry point: oauth/token=최초 발급, token/reissue=refreshToken 으로 재발급)
          */
         private val ORIGIN_CHECK_BYPASS_PATHS =
             listOf(
                 "/oauth2/authorization/",
                 "/login/oauth2/code/",
+                "/api/v1/auth/oauth/token",
+                "/api/v1/auth/token/reissue",
             )
     }
 
