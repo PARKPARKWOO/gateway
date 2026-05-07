@@ -9,6 +9,7 @@ import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
 import org.woo.apm.log.log
+import org.woo.gateway.config.CsrfOriginProperties
 import reactor.core.publisher.Mono
 import java.net.URI
 
@@ -18,19 +19,21 @@ import java.net.URI
  *
  * 게이트웨이 globalcors 의 allowedOriginPatterns 와 정책 일치.
  *
+ * 화이트리스트는 [CsrfOriginProperties] (`gateway.security.csrf.*` yaml/env) 에서 주입.
+ * 추후 application_domain 레지스트리(auth-server) 동적 로딩으로 확장 가능.
+ *
  * skip 조건:
  *  - safe method (GET/HEAD/OPTIONS)
  *  - OAuth provider 콜백 (외부 IdP → 게이트웨이로 들어오는 redirect, Origin 없음)
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
-class OriginVerificationFilter : WebFilter {
+class OriginVerificationFilter(
+    private val props: CsrfOriginProperties,
+) : WebFilter {
     companion object {
         private val UNSAFE_METHODS =
             setOf(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE)
-
-        private val ALLOWED_HOST_SUFFIXES = listOf(".platformholder.site")
-        private val ALLOWED_LOCALHOST_HOSTS = setOf("localhost", "127.0.0.1")
 
         /**
          * 외부 IdP 콜백 등 Origin 헤더 없이 들어와도 정상인 경로.
@@ -93,8 +96,9 @@ class OriginVerificationFilter : WebFilter {
             } catch (e: IllegalArgumentException) {
                 return false
             }
-        if (host in ALLOWED_LOCALHOST_HOSTS) return true
-        return ALLOWED_HOST_SUFFIXES.any { suffix ->
+        if (host in props.allowedLocalhostHosts) return true
+        if (host in props.allowedExactHosts) return true
+        return props.allowedHostSuffixes.any { suffix ->
             host == suffix.removePrefix(".") || host.endsWith(suffix)
         }
     }

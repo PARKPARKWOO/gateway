@@ -200,3 +200,19 @@ grpc:
   client:
     GLOBAL:
       negotiation-type: plaintext
+
+# CSRF Origin/Referer 화이트리스트 (OriginVerificationFilter 가 참조).
+# - allowed-host-suffixes: 패밀리 도메인 통째 허용 (서브도메인 와일드카드).
+# - allowed-exact-hosts: vercel preview 등 정확 매칭 (suffix 통째 허용 시 제3자 우회 위험).
+# - allowed-localhost-hosts: 로컬 개발 편의용.
+# 환경별 override 는 ENV(`GATEWAY_SECURITY_CSRF_ALLOWED_EXACT_HOSTS_0` 등) 또는 profile yaml 로.
+gateway:
+  security:
+    csrf:
+      allowed-host-suffixes:
+        - .platformholder.site
+      allowed-exact-hosts:
+        - forest-front-psi.vercel.app
+      allowed-localhost-hosts:
+        - localhost
+        - 127.0.0.1
