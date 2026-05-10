@@ -109,6 +109,9 @@ class AuthenticateGrpcFilterTest {
             `when`(mockMutator.headers(any())).thenReturn(mockMutator)
             val sanitizedRequest = mock(ServerHttpRequest::class.java)
             `when`(sanitizedRequest.headers).thenReturn(HttpHeaders())
+            val sanitizedPath = mock(RequestPath::class.java)
+            `when`(sanitizedPath.value()).thenReturn("/api/v1/forest/posts")
+            `when`(sanitizedRequest.path).thenReturn(sanitizedPath)
             `when`(mockMutator.build()).thenReturn(sanitizedRequest)
 
             val mockExchangeMutator = mock(ServerWebExchange.Builder::class.java)

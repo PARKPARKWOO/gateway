@@ -58,21 +58,41 @@ class AuthenticateGrpcFilter(
                 val sanitizedExchange = exchange.stripPassportHeader()
                 val request = sanitizedExchange.request
                 val response = sanitizedExchange.response
+                val path = request.path.value()
                 val (accessToken, refreshToken) = authenticateService.extractToken(request)
                 if (accessToken == null && refreshToken == null) {
+                    // 토큰 둘 다 없음 → passport 없는 채로 통과. 다운스트림(default-deny interceptor) 가 차단.
                     return@mono sanitizedExchange
                 }
 
                 val (passport, newAccessToken) =
                     try {
                         accessToken?.let {
-                            val passport = authenticateService.getPassport(accessToken) ?: return@mono sanitizedExchange
+                            val passport = authenticateService.getPassport(accessToken)
+                            if (passport == null) {
+                                log().warn("auth: getPassport returned null for accessToken (path=$path) — proceeding without X-User-Passport, downstream will deny")
+                                return@mono sanitizedExchange
+                            }
                             Pair(passport, accessToken)
-                        } ?: rotationToken(refreshToken!!, response) ?: return@mono sanitizedExchange
+                        } ?: run {
+                            val rotated = rotationToken(refreshToken!!, response)
+                            if (rotated == null) {
+                                log().warn("auth: refreshToken rotation failed (path=$path, no accessToken present) — cookies cleared, downstream will deny")
+                                return@mono sanitizedExchange
+                            }
+                            rotated
+                        }
                     } catch (e: ExpiredJwtException) {
-                        refreshToken?.let {
-                            rotationToken(refreshToken, response)
-                        } ?: return@mono sanitizedExchange
+                        if (refreshToken == null) {
+                            log().warn("auth: accessToken expired and no refreshToken (path=$path) — downstream will deny")
+                            return@mono sanitizedExchange
+                        }
+                        val rotated = rotationToken(refreshToken, response)
+                        if (rotated == null) {
+                            log().warn("auth: accessToken expired, refreshToken rotation also failed (path=$path) — cookies cleared, downstream will deny")
+                            return@mono sanitizedExchange
+                        }
+                        rotated
                     }
 
                 val mutatedRequest = request.mutate().header(AUTHORIZATION_HEADER, newAccessToken).build()
@@ -156,10 +176,18 @@ class AuthenticateGrpcFilter(
                     ),
                 )
             }
-            authenticateService.getPassport(newAccessToken)?.let { passport ->
+            val passport = authenticateService.getPassport(newAccessToken)
+            if (passport == null) {
+                // reissue 자체는 성공했는데 새 accessToken 으로 passport 추출이 실패. auth-server 응답 정합성 의심.
+                log().warn("auth: rotation reissued tokens but getPassport(newAccessToken) returned null")
+                null
+            } else {
                 Pair(passport, newAccessToken)
             }
-        }.onFailure {
+        }.onFailure { e ->
+            // F-AUTH-LOG: rotation 실패 원인을 가시화. 메모리 `gateway 토큰 회전 silent failure` 사고 (5/9) 재발 방지.
+            // 일반적 원인: refreshToken 만료/revoke, auth-server gRPC 오류, signing key 변경, 네트워크 오류.
+            log().warn("auth: token rotation failed (${e.javaClass.simpleName}): ${e.message} — clearing auth cookies")
             response.clearAuthCookie()
         }.getOrNull()
 
