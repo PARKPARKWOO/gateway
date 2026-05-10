@@ -7,6 +7,7 @@ import io.grpc.StatusException
 import io.grpc.StatusRuntimeException
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.stereotype.Service
+import org.woo.apm.log.log
 import org.woo.auth.grpc.AuthProto
 import org.woo.auth.grpc.TokenProto
 import org.woo.gateway.client.GrpcAuthClient
@@ -25,15 +26,29 @@ class AuthenticateService(
         try {
             authClient.getUserInfo(accessToken)
         } catch (e: StatusException) {
-            handleAuthGrpcError(e.message)
+            handleAuthGrpcError(e, e.message)
         } catch (e: StatusRuntimeException) {
-            handleAuthGrpcError(e.message)
+            handleAuthGrpcError(e, e.message)
         }
 
-    private fun handleAuthGrpcError(message: String?): AuthProto.Passport? {
+    /**
+     * gRPC 실패를 두 갈래로 분기:
+     *  - EXPIRED_JWT 메시지 포함 → `ExpiredJwtException` 으로 변환 (호출부에서 rotation 처리)
+     *  - 그 외 → null 반환. 단 silent 가 되지 않도록 **반드시 WARN 로 stack trace 와 함께 기록**.
+     *    이전엔 auth-server 다운/INTERNAL/네트워크 오류가 흔적 없이 사라져 다운스트림 NPE 의
+     *    원인 추적이 불가능했다 (5/9 사고 회고).
+     */
+    private fun handleAuthGrpcError(
+        cause: Throwable,
+        message: String?,
+    ): AuthProto.Passport? {
         if (message != null && message.contains(ErrorCode.EXPIRED_JWT.message)) {
             throw ExpiredJwtException(ErrorCode.EXPIRED_JWT, null)
         }
+        log().warn(
+            "auth: gRPC getUserInfo failed (non-expiry) — returning null passport. ex={}: {}",
+            cause.javaClass.simpleName, message, cause,
+        )
         return null
     }
 
