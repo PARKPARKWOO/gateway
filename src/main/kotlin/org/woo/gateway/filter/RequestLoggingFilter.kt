@@ -9,9 +9,11 @@ import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 
 /**
- * 모든 요청/응답을 로깅한다.
- *  - incoming: INFO (method, path, headers)
- *  - 완료 시: status/durationMs. status>=500 → ERROR, status>=400 → WARN, 그 외 → DEBUG.
+ * 요청 진입/완료 메타데이터를 비식별 로그로 기록한다.
+ *  - incoming: INFO (method, query 를 제외한 path). 요청 헤더와 query 는 기록하지 않는다.
+ *  - 완료 시: method/path/status/durationMs 와 형식 검증된 request ID.
+ *    request ID 는 `[A-Za-z0-9._:-]{1,128}` 형식만 기록하고 나머지는 `-` 로 대체한다.
+ *    status>=500 → ERROR, status>=400 → WARN, 그 외 → DEBUG.
  *
  * brave.Tracer 가 server span 을 따로 기록하지만 zipkin 형식이라 사람이 빠르게 grep 하기 어렵다.
  * 이 필터의 ERROR/WARN 라인은 Loki 에서 `{app="gateway"} |~ "request-completed"` 로 일관 추적 가능.
@@ -33,13 +35,12 @@ class RequestLoggingFilter :
         val startNanos = System.nanoTime()
         val method = request.method?.name() ?: "?"
         val path = runCatching { request.path.value() }.getOrDefault("?")
-        val requestId = request.headers.getFirst("X-Request-ID") ?: "-"
+        val requestId = sanitizeRequestId(request.headers.getFirst("X-Request-ID"))
 
         logger.info(
-            "Incoming request: method={}, path={}, headers={}",
-            request.method,
-            request.path,
-            request.headers,
+            "Incoming request: method={}, path={}",
+            method,
+            path,
         )
 
         return chain.filter(exchange).doFinally {
@@ -56,4 +57,11 @@ class RequestLoggingFilter :
     }
 
     override fun getOrder(): Int = Ordered.HIGHEST_PRECEDENCE
+
+    private fun sanitizeRequestId(requestId: String?): String =
+        requestId?.takeIf(REQUEST_ID_PATTERN::matches) ?: "-"
+
+    private companion object {
+        val REQUEST_ID_PATTERN = Regex("[A-Za-z0-9._:-]{1,128}")
+    }
 }
