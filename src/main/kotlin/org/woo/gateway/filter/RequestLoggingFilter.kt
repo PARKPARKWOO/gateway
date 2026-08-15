@@ -6,6 +6,7 @@ import org.springframework.cloud.gateway.filter.GlobalFilter
 import org.springframework.core.Ordered
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ServerWebExchange
+import org.woo.gateway.logging.RequestLogSanitizer
 import reactor.core.publisher.Mono
 
 /**
@@ -35,7 +36,7 @@ class RequestLoggingFilter :
         val startNanos = System.nanoTime()
         val method = request.method?.name() ?: "?"
         val path = runCatching { request.path.value() }.getOrDefault("?")
-        val requestId = sanitizeRequestId(request.headers.getFirst("X-Request-ID"))
+        val requestId = RequestLogSanitizer.requestId(request.headers.getFirst("X-Request-ID"))
 
         logger.info(
             "Incoming request: method={}, path={}",
@@ -57,11 +58,4 @@ class RequestLoggingFilter :
     }
 
     override fun getOrder(): Int = Ordered.HIGHEST_PRECEDENCE
-
-    private fun sanitizeRequestId(requestId: String?): String =
-        requestId?.takeIf(REQUEST_ID_PATTERN::matches) ?: "-"
-
-    private companion object {
-        val REQUEST_ID_PATTERN = Regex("[A-Za-z0-9._:-]{1,128}")
-    }
 }

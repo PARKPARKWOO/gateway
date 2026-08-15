@@ -13,13 +13,16 @@
             </label>
             <message>
                 <pattern>
-                    time=%d{ISO8601} traceId=%X{X-Request-ID} class=%logger{36} thread=%thread message="%message"%n%xException
+                    time=%d{ISO8601} traceId=%X{traceId:-NONE} class=%logger{36} thread=%thread message="%message"%n%xException
                 </pattern>
             </message>
         </format>
     </appender>
     <property name="CONSOLE_LOG_PATTERN"
-              value="%highlight(%-5level) %date [%thread] %cyan([%C{0} :: %M :: %L]) traceId=%X{X-Request-ID:-NONE} %X{exceptionName} spanId=%X{spanId:-NONE} - %msg%n%xException"/>
+              value="%highlight(%-5level) %date [%thread] %cyan([%C{0} :: %M :: %L]) traceId=%X{traceId:-NONE} %X{exceptionName} spanId=%X{spanId:-NONE} - %msg%n%xException"/>
+
+    <!-- GlobalErrorHandler owns sanitized diagnostics; this fallback includes the raw request query. -->
+    <logger name="org.springframework.web.server.adapter.HttpWebHandlerAdapter" level="OFF"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
