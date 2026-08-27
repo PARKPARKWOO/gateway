@@ -27,10 +27,12 @@ import org.woo.gateway.filter.AuthenticateGrpcFilter
 import org.woo.gateway.security.GatewayAuthCookieFactory
 import org.woo.gateway.service.AuthenticateService
 import reactor.core.publisher.Mono
+import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthenticateGrpcFilterTest {
@@ -203,5 +205,49 @@ class AuthenticateGrpcFilterTest {
             assertEquals(1, exchange.response.cookies["refreshToken"]?.size)
             assertEquals(newAccessToken, exchange.response.cookies.getFirst("accessToken")?.value)
             assertEquals(newRefreshToken, exchange.response.cookies.getFirst("refreshToken")?.value)
+        }
+
+    @Test
+    fun `rotation with null passport clears cookies and does not enrich the request`() =
+        runTest {
+            val oldRefreshToken = "refresh-token-before-null-passport"
+            val rotatedAccessToken = "rotated-access-token-must-not-survive"
+            val rotatedRefreshToken = "rotated-refresh-token-must-not-survive"
+            val exchange =
+                MockServerWebExchange.from(
+                    MockServerHttpRequest
+                        .get("/api/v1/cbt/history")
+                        .cookie(HttpCookie("refreshToken", oldRefreshToken))
+                        .build(),
+                )
+            val rotated =
+                TokenProto.JwtTokenResponse
+                    .newBuilder()
+                    .setAccessToken(rotatedAccessToken)
+                    .setRefreshToken(rotatedRefreshToken)
+                    .setAccessTokenExpiresIn(1_500)
+                    .setRefreshTokenExpiresIn(2_500)
+                    .build()
+            `when`(authenticateService.extractToken(exchange.request)).thenReturn(Pair(null, oldRefreshToken))
+            `when`(authenticateService.reissueToken(oldRefreshToken)).thenReturn(rotated)
+            `when`(authenticateService.getPassport(rotatedAccessToken)).thenReturn(null)
+
+            val routedExchange = AtomicReference<ServerWebExchange>()
+            val chain = GatewayFilterChain { routed ->
+                routedExchange.set(routed)
+                Mono.empty()
+            }
+
+            filter.apply(AuthenticateGrpcFilter.Config()).filter(exchange, chain).block()
+
+            val routed = assertNotNull(routedExchange.get())
+            assertNull(routed.request.headers.getFirst(HttpHeaders.AUTHORIZATION))
+            assertNull(routed.request.headers.getFirst("X-User-Passport"))
+            listOf("accessToken", "refreshToken").forEach { name ->
+                val cookies = exchange.response.cookies[name].orEmpty()
+                assertEquals(1, cookies.size)
+                assertEquals("", cookies.single().value)
+                assertEquals(Duration.ZERO, cookies.single().maxAge)
+            }
         }
 }

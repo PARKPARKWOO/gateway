@@ -166,28 +166,26 @@ class AuthenticateGrpcFilter(
         runCatching {
             val reissueToken = authenticateService.reissueToken(refreshToken)
             val newAccessToken = reissueToken.accessToken
-            response.apply {
-                addCookie(
+            val passport = authenticateService.getPassport(newAccessToken)
+            if (passport == null) {
+                log().warn("auth: rotation reissued tokens but passport validation returned null — clearing auth cookies")
+                response.clearAuthCookie()
+                null
+            } else {
+                val accessCookie =
                     cookieFactory.issue(
                         cookieFactory.accessTokenName(),
                         newAccessToken,
                         reissueToken.accessTokenExpiresIn,
-                    ),
-                )
-                addCookie(
+                    )
+                val refreshCookie =
                     cookieFactory.issue(
                         cookieFactory.refreshTokenName(),
                         reissueToken.refreshToken,
                         reissueToken.refreshTokenExpiresIn,
-                    ),
-                )
-            }
-            val passport = authenticateService.getPassport(newAccessToken)
-            if (passport == null) {
-                // reissue 자체는 성공했는데 새 accessToken 으로 passport 추출이 실패. auth-server 응답 정합성 의심.
-                log().warn("auth: rotation reissued tokens but getPassport(newAccessToken) returned null")
-                null
-            } else {
+                    )
+                response.addCookie(accessCookie)
+                response.addCookie(refreshCookie)
                 Pair(passport, newAccessToken)
             }
         }.onFailure { e ->

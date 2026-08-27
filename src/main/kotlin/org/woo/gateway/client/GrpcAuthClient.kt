@@ -35,7 +35,11 @@ class GrpcAuthClient(
                 .withInterceptors(TokenInitializeInMetadata(token))
                 .getPassportByBearer(Empty.newBuilder().build())
         } catch (e: StatusRuntimeException) {
-            log().error("Failed to fetch user info: ${e.message}", e)
+            log().error(
+                "auth: gRPC getUserInfo failed (exception={}, status={})",
+                e.javaClass.simpleName,
+                e.status.code.name,
+            )
             throw e
         }
 
