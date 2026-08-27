@@ -3,6 +3,7 @@ package org.woo.gateway.service
 import constant.AuthConstant.AUTHORIZATION_HEADER
 import exception.ErrorCode
 import exception.ExpiredJwtException
+import io.grpc.Status
 import io.grpc.StatusException
 import io.grpc.StatusRuntimeException
 import org.springframework.http.server.reactive.ServerHttpRequest
@@ -26,28 +27,32 @@ class AuthenticateService(
         try {
             authClient.getUserInfo(accessToken)
         } catch (e: StatusException) {
-            handleAuthGrpcError(e, e.message)
+            handleAuthGrpcError(e.status, e.javaClass.simpleName)
         } catch (e: StatusRuntimeException) {
-            handleAuthGrpcError(e, e.message)
+            handleAuthGrpcError(e.status, e.javaClass.simpleName)
         }
 
     /**
      * gRPC 실패를 두 갈래로 분기:
-     *  - EXPIRED_JWT 메시지 포함 → `ExpiredJwtException` 으로 변환 (호출부에서 rotation 처리)
-     *  - 그 외 → null 반환. 단 silent 가 되지 않도록 **반드시 WARN 로 stack trace 와 함께 기록**.
+     *  - Auth 계약인 UNAUTHENTICATED + EXPIRED_JWT description 정확 일치만 만료로 변환
+     *  - 그 외 → null 반환. raw description/throwable 없이 예외 클래스와 status code만 기록
      *    이전엔 auth-server 다운/INTERNAL/네트워크 오류가 흔적 없이 사라져 다운스트림 NPE 의
      *    원인 추적이 불가능했다 (5/9 사고 회고).
      */
     private fun handleAuthGrpcError(
-        cause: Throwable,
-        message: String?,
+        status: Status,
+        exceptionClass: String,
     ): AuthProto.Passport? {
-        if (message != null && message.contains(ErrorCode.EXPIRED_JWT.message)) {
+        if (
+            status.code == Status.Code.UNAUTHENTICATED &&
+            status.description == ErrorCode.EXPIRED_JWT.name
+        ) {
             throw ExpiredJwtException(ErrorCode.EXPIRED_JWT, null)
         }
         log().warn(
-            "auth: gRPC getUserInfo failed (non-expiry) — returning null passport. ex={}: {}",
-            cause.javaClass.simpleName, message, cause,
+            "auth: gRPC getUserInfo failed (non-expiry) — returning null passport. exception={}, status={}",
+            exceptionClass,
+            status.code.name,
         )
         return null
     }
