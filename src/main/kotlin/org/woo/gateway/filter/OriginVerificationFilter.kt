@@ -10,6 +10,8 @@ import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
 import org.woo.apm.log.log
 import org.woo.gateway.config.CsrfOriginProperties
+import org.woo.gateway.config.CsrfTokenProperties
+import org.woo.gateway.security.CsrfTokenService
 import reactor.core.publisher.Mono
 import java.net.URI
 
@@ -30,6 +32,8 @@ import java.net.URI
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 class OriginVerificationFilter(
     private val props: CsrfOriginProperties,
+    private val tokenProperties: CsrfTokenProperties,
+    private val tokenService: CsrfTokenService,
 ) : WebFilter {
     companion object {
         private val UNSAFE_METHODS =
@@ -51,6 +55,12 @@ class OriginVerificationFilter(
                 "/api/v1/auth/oauth/token",
                 "/api/v1/auth/token/reissue",
             )
+
+        private const val CBT_PATH_PREFIX = "/api/v1/cbt"
+        private const val INSTALLATION_ID_HEADER = "X-CBT-Installation-Id"
+        private val AUTH_COOKIE_NAMES = setOf("accessToken", "refreshToken")
+        private val INSTALLATION_ID_PATTERN = Regex("[A-Za-z0-9_-]{20,128}")
+        private val BEARER_PATTERN = Regex("Bearer [^\\s]+", RegexOption.IGNORE_CASE)
     }
 
     override fun filter(
@@ -71,8 +81,8 @@ class OriginVerificationFilter(
         // 박을 수 없으므로 CSRF 노출 X. 따라서 토큰 헤더 인증은 Origin 검증을 면제한다.
         // 모바일 앱(BBR/mirror-view) 등 native 클라이언트는 Origin 헤더를 안 보내지만 Authorization
         // 헤더로 인증하므로 이 분기로 통과.
-        val hasAuthHeader = !request.headers.getFirst("Authorization").isNullOrBlank()
-        if (hasAuthHeader) {
+        val authorization = request.headers.getFirst("Authorization")
+        if (authorization != null && BEARER_PATTERN.matches(authorization)) {
             return chain.filter(exchange)
         }
 
@@ -81,12 +91,40 @@ class OriginVerificationFilter(
         val candidate = origin ?: referer
 
         if (candidate == null) {
+            if (
+                isCbtPath(path) &&
+                authorization.isNullOrBlank() &&
+                !hasAuthCookie(exchange) &&
+                hasValidInstallationId(exchange)
+            ) {
+                return chain.filter(exchange)
+            }
             return reject(exchange, "missing Origin/Referer for $method $path")
         }
         if (!isAllowed(candidate)) {
-            return reject(exchange, "disallowed origin '$candidate' for $method $path")
+            return reject(exchange, "disallowed Origin/Referer for $method $path")
+        }
+        if (isCbtPath(path) && !hasMatchingToken(exchange)) {
+            return reject(exchange, "missing or mismatched CBT CSRF token for $method $path")
         }
         return chain.filter(exchange)
+    }
+
+    private fun isCbtPath(path: String): Boolean =
+        path == CBT_PATH_PREFIX || path.startsWith("$CBT_PATH_PREFIX/")
+
+    private fun hasAuthCookie(exchange: ServerWebExchange): Boolean =
+        AUTH_COOKIE_NAMES.any(exchange.request.cookies::containsKey)
+
+    private fun hasValidInstallationId(exchange: ServerWebExchange): Boolean =
+        exchange.request.headers
+            .getFirst(INSTALLATION_ID_HEADER)
+            ?.let(INSTALLATION_ID_PATTERN::matches) == true
+
+    private fun hasMatchingToken(exchange: ServerWebExchange): Boolean {
+        val cookieValue = exchange.request.cookies.getFirst(tokenProperties.cookieName)?.value ?: return false
+        val headerValue = exchange.request.headers.getFirst(tokenProperties.headerName) ?: return false
+        return tokenService.matches(cookieValue, headerValue)
     }
 
     private fun isAllowed(originOrReferer: String): Boolean {

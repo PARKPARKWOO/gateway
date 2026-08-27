@@ -10,6 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
  * - [allowedLocalhostHosts]: 로컬 개발 편의용 호스트.
  *
  * 정책: `OriginVerificationFilter` 가 unsafe method 요청에 대해 Origin/Referer 호스트를 위 목록과 비교한다.
+ * CBT 경로의 double-submit cookie/header 이름과 cookie 속성은 [CsrfTokenProperties]가 별도로 바인딩한다.
  * `.vercel.app` 같이 통째로 suffix 허용은 **금지** (제3자 vercel 사이트가 우리 백엔드로 CSRF 가능).
  * 외부 정적 호스팅을 추가할 때는 [allowedExactHosts] 에 정확한 호스트네임을 등록한다.
  */

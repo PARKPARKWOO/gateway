@@ -211,6 +211,15 @@ gateway:
   # 환경별 override 는 ENV(`GATEWAY_SECURITY_CSRF_ALLOWED_EXACT_HOSTS_0` 등) 또는 profile yaml 로.
   security:
     csrf:
+      token:
+        cookie-name: XSRF-TOKEN
+        header-name: X-XSRF-TOKEN
+        cookie-domain: ${CSRF_COOKIE_DOMAIN:.platformholder.site}
+        secure: ${CSRF_COOKIE_SECURE:true}
+        same-site: ${CSRF_COOKIE_SAME_SITE:None}
+        path: /
+        http-only: false
+        bytes: 32
       allowed-host-suffixes:
         - .platformholder.site
       allowed-exact-hosts:

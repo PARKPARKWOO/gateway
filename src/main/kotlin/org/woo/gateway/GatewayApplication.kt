@@ -4,10 +4,15 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
 import org.woo.gateway.config.CsrfOriginProperties
+import org.woo.gateway.config.CsrfTokenProperties
 import org.woo.gateway.config.GatewayAuthCookieProperties
 
 @SpringBootApplication
-@EnableConfigurationProperties(CsrfOriginProperties::class, GatewayAuthCookieProperties::class)
+@EnableConfigurationProperties(
+    CsrfOriginProperties::class,
+    CsrfTokenProperties::class,
+    GatewayAuthCookieProperties::class,
+)
 class GatewayApplication
 
 fun main(args: Array<String>) {

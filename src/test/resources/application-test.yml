@@ -4,3 +4,9 @@ gateway:
       domain: ""
       secure: false
       same-site: Lax
+  security:
+    csrf:
+      token:
+        cookie-domain: ""
+        secure: false
+        same-site: Lax
