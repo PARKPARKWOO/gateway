@@ -1,0 +1,6 @@
+gateway:
+  auth:
+    cookie:
+      domain: ""
+      secure: false
+      same-site: Lax

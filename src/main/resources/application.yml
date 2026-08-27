@@ -193,6 +193,15 @@ springdoc:
         url: /v3/api-docs/mv
 
 gateway:
+  auth:
+    cookie:
+      access-token-name: accessToken
+      refresh-token-name: refreshToken
+      domain: ${AUTH_COOKIE_DOMAIN:.platformholder.site}
+      secure: ${AUTH_COOKIE_SECURE:true}
+      same-site: ${AUTH_COOKIE_SAME_SITE:None}
+      path: /
+      http-only: true
   swagger:
     enabled: ${SWAGGER_ENABLED:true}
   # CSRF Origin/Referer 화이트리스트 (OriginVerificationFilter 가 참조).

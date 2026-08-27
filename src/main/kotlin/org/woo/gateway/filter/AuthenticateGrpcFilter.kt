@@ -10,21 +10,21 @@ import org.springframework.cloud.gateway.filter.GatewayFilter
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory
 import org.springframework.cloud.gateway.route.Route
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils
-import org.springframework.http.ResponseCookie
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ServerWebExchange
 import org.woo.apm.log.log
 import org.woo.auth.grpc.AuthProto
+import org.woo.gateway.security.GatewayAuthCookieFactory
 import org.woo.gateway.service.AuthenticateService
 import org.woo.mapper.Jackson
-import java.time.Duration
 import java.util.UUID
 
 @Component
 class AuthenticateGrpcFilter(
     private val authenticateService: AuthenticateService,
+    private val cookieFactory: GatewayAuthCookieFactory,
 ) : AbstractGatewayFilterFactory<AuthenticateGrpcFilter.Config>(Config::class.java) {
     companion object {
         private const val PASSPORT_HEADER = "X-User-Passport"
@@ -167,10 +167,16 @@ class AuthenticateGrpcFilter(
             val reissueToken = authenticateService.reissueToken(refreshToken)
             val newAccessToken = reissueToken.accessToken
             response.apply {
-                addCookie(createCookie("accessToken", newAccessToken, reissueToken.accessTokenExpiresIn))
                 addCookie(
-                    createCookie(
-                        "refreshToken",
+                    cookieFactory.issue(
+                        cookieFactory.accessTokenName(),
+                        newAccessToken,
+                        reissueToken.accessTokenExpiresIn,
+                    ),
+                )
+                addCookie(
+                    cookieFactory.issue(
+                        cookieFactory.refreshTokenName(),
                         reissueToken.refreshToken,
                         reissueToken.refreshTokenExpiresIn,
                     ),
@@ -187,41 +193,12 @@ class AuthenticateGrpcFilter(
         }.onFailure { e ->
             // F-AUTH-LOG: rotation 실패 원인을 가시화. 메모리 `gateway 토큰 회전 silent failure` 사고 (5/9) 재발 방지.
             // 일반적 원인: refreshToken 만료/revoke, auth-server gRPC 오류, signing key 변경, 네트워크 오류.
-            log().warn("auth: token rotation failed (${e.javaClass.simpleName}): ${e.message} — clearing auth cookies")
+            log().warn("auth: token rotation failed (${e.javaClass.simpleName}) — clearing auth cookies")
             response.clearAuthCookie()
         }.getOrNull()
 
     private fun ServerHttpResponse.clearAuthCookie() {
-        // LOGOUT-3: createCookie 와 (name, domain, path, secure, sameSite) 를 동일하게 맞춰야
-        // 브라우저가 같은 쿠키로 인식하고 삭제.
-        this.addCookie(buildClearedCookie("accessToken"))
-        this.addCookie(buildClearedCookie("refreshToken"))
+        this.addCookie(cookieFactory.clear(cookieFactory.accessTokenName()))
+        this.addCookie(cookieFactory.clear(cookieFactory.refreshTokenName()))
     }
-
-    private fun buildClearedCookie(name: String): ResponseCookie =
-        ResponseCookie
-            .from(name, "")
-            .path("/")
-            .domain(".platformholder.site")
-            .maxAge(Duration.ZERO)
-            .httpOnly(true)
-            .secure(true)
-            .sameSite("None")
-            .build()
-
-    private fun createCookie(
-        name: String,
-        value: String,
-        maxAge: Long,
-    ): ResponseCookie =
-        ResponseCookie
-            .from(name, value)
-            // P0-#2: httpOnly. JS 가 토큰을 만지지 않는 정책 (axios withCredentials + 게이트웨이 자동 회전).
-            .httpOnly(true)
-            .secure(true)
-            .path("/")
-            .domain(".platformholder.site")
-            .maxAge(Duration.ofMillis(maxAge))
-            .sameSite("None")
-            .build()
 }

@@ -11,19 +11,40 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.springframework.cloud.gateway.filter.GatewayFilterChain
 import org.springframework.cloud.gateway.route.Route
+import org.springframework.http.HttpCookie
 import org.springframework.http.HttpHeaders
+import org.springframework.mock.env.MockEnvironment
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.http.server.RequestPath
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.web.server.ServerWebExchange
+import org.woo.auth.grpc.AuthProto
+import org.woo.auth.grpc.TokenProto
+import org.woo.gateway.config.GatewayAuthCookieProperties
 import org.woo.gateway.filter.AuthenticateGrpcFilter
+import org.woo.gateway.security.GatewayAuthCookieFactory
 import org.woo.gateway.service.AuthenticateService
 import reactor.core.publisher.Mono
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthenticateGrpcFilterTest {
     private val authenticateService: AuthenticateService = mock(AuthenticateService::class.java)
-    private val filter = AuthenticateGrpcFilter(authenticateService)
+    private val cookieFactory =
+        GatewayAuthCookieFactory(
+            GatewayAuthCookieProperties(
+                domain = null,
+                secure = false,
+                sameSite = "Lax",
+            ),
+            MockEnvironment().apply { setActiveProfiles("test") },
+        )
+    private val filter = AuthenticateGrpcFilter(authenticateService, cookieFactory)
 
     private fun stubExchange(
         passportHeaderPresent: Boolean = false,
@@ -133,5 +154,54 @@ class AuthenticateGrpcFilterTest {
 
             // strip 이 일어났음 — 다운스트림에는 sanitizedExchange 가 전달
             verify(mockChain).filter(sanitizedExchange)
+        }
+
+    @Test
+    fun `refresh cookie rotation enriches the original request and writes one cookie pair`() =
+        runTest {
+            val oldRefreshToken = "refresh-token-sentinel"
+            val newAccessToken = "rotated-access-token-sentinel"
+            val newRefreshToken = "rotated-refresh-token-sentinel"
+            val exchange =
+                MockServerWebExchange.from(
+                    MockServerHttpRequest
+                        .get("/api/v1/cbt/history")
+                        .cookie(HttpCookie("refreshToken", oldRefreshToken))
+                        .build(),
+                )
+            val passport =
+                AuthProto.Passport
+                    .newBuilder()
+                    .setId(UUID.randomUUID().toString())
+                    .setRole("ROLE_USER")
+                    .setApplicationId("mirror-view")
+                    .build()
+            val rotated =
+                TokenProto.JwtTokenResponse
+                    .newBuilder()
+                    .setAccessToken(newAccessToken)
+                    .setRefreshToken(newRefreshToken)
+                    .setAccessTokenExpiresIn(1_500)
+                    .setRefreshTokenExpiresIn(2_500)
+                    .build()
+            `when`(authenticateService.extractToken(exchange.request)).thenReturn(Pair(null, oldRefreshToken))
+            `when`(authenticateService.reissueToken(oldRefreshToken)).thenReturn(rotated)
+            `when`(authenticateService.getPassport(newAccessToken)).thenReturn(passport)
+
+            val routedExchange = AtomicReference<ServerWebExchange>()
+            val chain = GatewayFilterChain { routed ->
+                routedExchange.set(routed)
+                Mono.empty()
+            }
+
+            filter.apply(AuthenticateGrpcFilter.Config()).filter(exchange, chain).block()
+
+            val routed = assertNotNull(routedExchange.get())
+            assertEquals(newAccessToken, routed.request.headers.getFirst(HttpHeaders.AUTHORIZATION))
+            assertNotNull(routed.request.headers.getFirst("X-User-Passport"))
+            assertEquals(1, exchange.response.cookies["accessToken"]?.size)
+            assertEquals(1, exchange.response.cookies["refreshToken"]?.size)
+            assertEquals(newAccessToken, exchange.response.cookies.getFirst("accessToken")?.value)
+            assertEquals(newRefreshToken, exchange.response.cookies.getFirst("refreshToken")?.value)
         }
 }
