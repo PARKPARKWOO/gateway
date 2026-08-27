@@ -2,6 +2,7 @@ package org.woo.gateway.filter
 
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
@@ -11,6 +12,7 @@ import org.springframework.web.server.WebFilterChain
 import org.woo.apm.log.log
 import org.woo.gateway.config.CsrfOriginProperties
 import org.woo.gateway.config.CsrfTokenProperties
+import org.woo.gateway.security.CbtWebOriginMatcher
 import org.woo.gateway.security.CsrfTokenService
 import reactor.core.publisher.Mono
 import java.net.URI
@@ -19,10 +21,8 @@ import java.net.URI
  * CSRF-1: 상태 변경 메서드(POST/PUT/PATCH/DELETE)에 대해 Origin/Referer 헤더가
  * 화이트리스트에 있는지 검증. SameSite=None + credentialed cookie 환경의 CSRF 방어.
  *
- * 게이트웨이 globalcors 의 allowedOriginPatterns 와 정책 일치.
- *
- * 화이트리스트는 [CsrfOriginProperties] (`gateway.security.csrf.*` yaml/env) 에서 주입.
- * 추후 application_domain 레지스트리(auth-server) 동적 로딩으로 확장 가능.
+ * CBT 경로는 [CbtWebOriginMatcher]의 exact scheme/host/effective-port 정책을 사용한다.
+ * 비-CBT 경로는 호환성을 위해 [CsrfOriginProperties]의 기존 host 정책을 유지한다.
  *
  * skip 조건:
  *  - safe method (GET/HEAD/OPTIONS)
@@ -34,6 +34,7 @@ class OriginVerificationFilter(
     private val props: CsrfOriginProperties,
     private val tokenProperties: CsrfTokenProperties,
     private val tokenService: CsrfTokenService,
+    private val cbtWebOriginMatcher: CbtWebOriginMatcher,
 ) : WebFilter {
     companion object {
         private val UNSAFE_METHODS =
@@ -56,7 +57,8 @@ class OriginVerificationFilter(
                 "/api/v1/auth/token/reissue",
             )
 
-        private const val CBT_PATH_PREFIX = "/api/v1/cbt"
+        private const val PUBLIC_CBT_PATH_PREFIX = "/api/v1/cbt"
+        private val CBT_PATH_PREFIXES = listOf(PUBLIC_CBT_PATH_PREFIX, "/api/v1/admin/cbt")
         private const val INSTALLATION_ID_HEADER = "X-CBT-Installation-Id"
         private val AUTH_COOKIE_NAMES = setOf("accessToken", "refreshToken")
         private val INSTALLATION_ID_PATTERN = Regex("[A-Za-z0-9_-]{20,128}")
@@ -86,13 +88,13 @@ class OriginVerificationFilter(
             return chain.filter(exchange)
         }
 
-        val origin = request.headers.getFirst("Origin")
-        val referer = request.headers.getFirst("Referer")
+        val origin = request.headers.getFirst(HttpHeaders.ORIGIN)
+        val referer = request.headers.getFirst(HttpHeaders.REFERER)
         val candidate = origin ?: referer
 
         if (candidate == null) {
             if (
-                isCbtPath(path) &&
+                isPublicCbtPath(path) &&
                 authorization.isNullOrBlank() &&
                 !hasAuthCookie(exchange) &&
                 hasValidInstallationId(exchange)
@@ -101,7 +103,18 @@ class OriginVerificationFilter(
             }
             return reject(exchange, "missing Origin/Referer for $method $path")
         }
-        if (!isAllowed(candidate)) {
+        val allowed =
+            if (isCbtPath(path)) {
+                when {
+                    origin != null ->
+                        request.headers[HttpHeaders.ORIGIN].orEmpty().size == 1 &&
+                            cbtWebOriginMatcher.matchesOrigin(origin)
+                    else -> cbtWebOriginMatcher.matchesReferer(candidate)
+                }
+            } else {
+                isAllowed(candidate)
+            }
+        if (!allowed) {
             return reject(exchange, "disallowed Origin/Referer for $method $path")
         }
         if (isCbtPath(path) && !hasMatchingToken(exchange)) {
@@ -111,7 +124,10 @@ class OriginVerificationFilter(
     }
 
     private fun isCbtPath(path: String): Boolean =
-        path == CBT_PATH_PREFIX || path.startsWith("$CBT_PATH_PREFIX/")
+        CBT_PATH_PREFIXES.any { prefix -> path == prefix || path.startsWith("$prefix/") }
+
+    private fun isPublicCbtPath(path: String): Boolean =
+        path == PUBLIC_CBT_PATH_PREFIX || path.startsWith("$PUBLIC_CBT_PATH_PREFIX/")
 
     private fun hasAuthCookie(exchange: ServerWebExchange): Boolean =
         AUTH_COOKIE_NAMES.any(exchange.request.cookies::containsKey)

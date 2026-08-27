@@ -2,15 +2,19 @@ package org.woo.gateway
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.http.HttpCookie
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.server.WebFilterChain
+import org.woo.gateway.config.CbtCorsProperties
 import org.woo.gateway.config.CsrfOriginProperties
 import org.woo.gateway.config.CsrfTokenProperties
 import org.woo.gateway.filter.OriginVerificationFilter
+import org.woo.gateway.security.CbtWebOriginMatcher
 import org.woo.gateway.security.SecureCsrfTokenService
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
@@ -28,6 +32,7 @@ class OriginVerificationFilterTest {
             props,
             tokenProperties,
             SecureCsrfTokenService(tokenProperties),
+            CbtWebOriginMatcher(CbtCorsProperties()),
         )
 
     private fun build(
@@ -78,6 +83,112 @@ class OriginVerificationFilterTest {
             assertThat(execute(exchange)).describedAs("$method must pass").isTrue()
             assertThat(exchange.response.statusCode).isNotEqualTo(HttpStatus.FORBIDDEN)
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            "https://mirror-view.platformholder.site",
+            "http://localhost:5173",
+            "http://127.0.0.1:4173",
+        ],
+    )
+    fun `each exact CBT web origin passes an unsafe credentialed request`(origin: String) {
+        val exchange =
+            build(
+                method = HttpMethod.POST,
+                path = CBT_PATH,
+                origin = origin,
+                csrfCookie = VALID_CSRF_TOKEN,
+                csrfHeader = VALID_CSRF_TOKEN,
+            )
+
+        assertThat(execute(exchange)).isTrue()
+        assertThat(exchange.response.statusCode).isNotEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            "https://web.mirror-view.platformholder.site",
+            "https://mirror-view.platformholder.site.attacker.example",
+            "http://mirror-view.platformholder.site",
+            "https://mirror-view.platformholder.site:8443",
+            "https://mirror-view.platformholder.site:",
+            "https://localhost:5173",
+            "http://localhost:4173",
+            "https://127.0.0.1:4173",
+            "http://127.0.0.1:5173",
+            "https://mirror-view-pr-123.vercel.app",
+            "https://user@mirror-view.platformholder.site",
+            "null",
+            "mirror-view.platformholder.site",
+            "https://mirror-view.platformholder.site/cbt/exam",
+            "https://mirror-view.platformholder.site?next=attacker",
+            "https://mirror-view.platformholder.site#fragment",
+        ],
+    )
+    fun `CBT unsafe request rejects every non-exact Origin even with matching CSRF`(origin: String) {
+        val exchange =
+            build(
+                method = HttpMethod.POST,
+                path = CBT_PATH,
+                origin = origin,
+                csrfCookie = VALID_CSRF_TOKEN,
+                csrfHeader = VALID_CSRF_TOKEN,
+            )
+
+        assertThat(execute(exchange)).isFalse()
+        assertThat(exchange.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            "https://mirror-view.platformholder.site/cbt/exam",
+            "http://localhost:5173/cbt/exam",
+            "http://127.0.0.1:4173/cbt/exam",
+        ],
+    )
+    fun `each exact CBT web Referer passes an unsafe credentialed request when Origin is absent`(referer: String) {
+        val exchange =
+            build(
+                method = HttpMethod.POST,
+                path = CBT_PATH,
+                referer = referer,
+                csrfCookie = VALID_CSRF_TOKEN,
+                csrfHeader = VALID_CSRF_TOKEN,
+            )
+
+        assertThat(execute(exchange)).isTrue()
+        assertThat(exchange.response.statusCode).isNotEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            "https://web.mirror-view.platformholder.site/cbt/exam",
+            "https://mirror-view.platformholder.site.attacker.example/cbt/exam",
+            "http://mirror-view.platformholder.site/cbt/exam",
+            "https://mirror-view.platformholder.site:8443/cbt/exam",
+            "https://mirror-view.platformholder.site:/cbt/exam",
+            "https://user@mirror-view.platformholder.site/cbt/exam",
+            "null",
+            "mirror-view.platformholder.site/cbt/exam",
+        ],
+    )
+    fun `CBT unsafe request rejects every non-exact or malformed Referer even with matching CSRF`(referer: String) {
+        val exchange =
+            build(
+                method = HttpMethod.POST,
+                path = CBT_PATH,
+                referer = referer,
+                csrfCookie = VALID_CSRF_TOKEN,
+                csrfHeader = VALID_CSRF_TOKEN,
+            )
+
+        assertThat(execute(exchange)).isFalse()
+        assertThat(exchange.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
     @Test
@@ -159,6 +270,19 @@ class OriginVerificationFilterTest {
             assertThat(execute(exchange)).describedAs("$method native guest request must pass").isTrue()
             assertThat(exchange.response.statusCode).isNotEqualTo(HttpStatus.FORBIDDEN)
         }
+    }
+
+    @Test
+    fun `browserless installation id does not create an anonymous admin CBT bypass`() {
+        val exchange =
+            build(
+                method = HttpMethod.POST,
+                path = "/api/v1/admin/cbt/exams",
+                installationId = VALID_INSTALLATION_ID,
+            )
+
+        assertThat(execute(exchange)).isFalse()
+        assertThat(exchange.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
     @Test

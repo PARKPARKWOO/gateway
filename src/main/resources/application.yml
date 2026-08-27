@@ -25,8 +25,8 @@ spring:
           max-connections: 500
           acquire-timeout: 5
           max-idle-time: 15s
-      # CORS 는 와일드카드. CSRF 방어는 OriginVerificationFilter (CSRF-1) 가 별도로 처리.
-      # 추후 application_domain 레지스트리(auth-server) 동적 로딩 또는 명시적 화이트리스트로 전환 검토.
+      # 비-CBT CORS 는 기존 와일드카드를 유지한다. CBT 경로는 CbtCorsOriginFilter 가
+      # exact origin 및 preflight method/header 계약을 먼저 검증한다.
       globalcors:
         cors-configurations:
           '[/**]':
@@ -210,6 +210,11 @@ gateway:
   # - allowed-localhost-hosts: 로컬 개발 편의용.
   # 환경별 override 는 ENV(`GATEWAY_SECURITY_CSRF_ALLOWED_EXACT_HOSTS_0` 등) 또는 profile yaml 로.
   security:
+    cbt-cors:
+      allowed-origins:
+        - ${CBT_WEB_ORIGIN:https://mirror-view.platformholder.site}
+        - ${CBT_WEB_LOCAL_VITE_ORIGIN:http://localhost:5173}
+        - ${CBT_WEB_LOCAL_PREVIEW_ORIGIN:http://127.0.0.1:4173}
     csrf:
       token:
         cookie-name: XSRF-TOKEN
