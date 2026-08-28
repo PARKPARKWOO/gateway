@@ -43,6 +43,20 @@ class CbtWebSessionContractFixtureTest {
                 fixture.replaceFirst("\"version\":1,", ""),
                 fixture.replaceFirst("\"version\":1", "\"version\":\"1\""),
                 fixture.replaceFirst("\"web\":\"HTTP_ONLY_COOKIE\"", "\"web\":\"COOKIE\""),
+                fixture.replaceFirst("\"webDirectReissue\":false", "\"webDirectReissue\":null"),
+                fixture.replaceFirst("\"httpOnly\":false", "\"httpOnly\":null"),
+                fixture.replaceFirst(
+                    "\"publicCatalogRead\":{\"methods\":",
+                    "\"publicCatalogRead\":{\"method\":null,\"methods\":",
+                ),
+                fixture.replaceFirst(
+                    "\"publicCatalogRead\":{\"methods\":",
+                    "\"publicCatalogRead\":{\"auth\":null,\"methods\":",
+                ),
+                fixture.replaceFirst(
+                    "\"publicQuestionPreviewRead\":{\"method\":",
+                    "\"publicQuestionPreviewRead\":{\"anonymousMobileRequired\":null,\"method\":",
+                ),
                 fixture.replaceFirst(
                     "\"authTransport\":{\"web\":\"HTTP_ONLY_COOKIE\",\"mobile\":\"BEARER\",\"rotationOwner\":\"GATEWAY\",\"webDirectReissue\":false}",
                     "\"authTransport\":null",

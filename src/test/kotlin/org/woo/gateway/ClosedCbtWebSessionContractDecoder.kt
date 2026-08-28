@@ -3,11 +3,11 @@ package org.woo.gateway
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.core.StreamReadFeature
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.fasterxml.jackson.module.kotlin.readValue
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.bind.PropertySourcesPlaceholdersResolver
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources
@@ -28,11 +28,47 @@ class ClosedCbtWebSessionContractDecoder {
             .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
             .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES)
+            .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
             .disable(MapperFeature.ALLOW_COERCION_OF_SCALARS)
             .build()
 
-    fun decode(json: String): CbtWebSessionContract = mapper.readValue(json)
+    fun decode(json: String): CbtWebSessionContract {
+        val root = mapper.readTree(json)
+        validateOperationShapes(root)
+        return mapper.treeToValue(root, CbtWebSessionContract::class.java)
+    }
+
+    private fun validateOperationShapes(root: JsonNode) {
+        val operations = requireNotNull(root["operationHeaders"])
+        require(operations.isObject)
+        require(operations.fieldNames().asSequence().toSet() == OPERATION_FIELDS.keys)
+        OPERATION_FIELDS.forEach { (name, expectedFields) ->
+            val operation = requireNotNull(operations[name])
+            require(operation.isObject)
+            require(operation.fieldNames().asSequence().toSet() == expectedFields)
+            require(operation.elements().asSequence().none(JsonNode::isNull))
+        }
+    }
+
+    private companion object {
+        val OPERATION_FIELDS =
+            linkedMapOf(
+                "publicCatalogRead" to setOf("methods", "paths", "required", "optional", "webRequired", "anonymousMobileRequired"),
+                "publicQuestionPreviewRead" to setOf("method", "path", "auth", "client", "required", "optional", "webRequired"),
+                "publicAssetRead" to setOf("method", "path", "auth", "required", "optional", "webRequired", "anonymousMobileRequired"),
+                "attemptCreate" to setOf("method", "path", "auth", "required", "optional", "webRequired", "anonymousMobileRequired"),
+                "guestAttemptRead" to setOf("methods", "paths", "auth", "requiredWhenGuest", "webRequired", "anonymousMobileRequired"),
+                "guestAttemptSaveCheckSubmit" to setOf("methods", "paths", "auth", "requiredWhenGuest", "webRequired", "anonymousMobileRequired"),
+                "attemptClaim" to setOf("method", "path", "auth", "required", "optional", "webRequired", "anonymousMobileRequired"),
+                "userRead" to setOf("methods", "paths", "auth", "required", "optional", "webRequired", "anonymousMobileRequired"),
+                "wrongAnswerResolve" to setOf("method", "path", "auth", "required", "optional", "webRequired", "anonymousMobileRequired"),
+                "wrongAnswerRetry" to setOf("method", "path", "auth", "required", "optional", "webRequired", "anonymousMobileRequired"),
+                "publicPrintableCreate" to setOf("method", "path", "auth", "client", "required", "optional", "webRequired"),
+                "wrongPrintableCreate" to setOf("method", "path", "auth", "client", "required", "optional", "webRequired"),
+                "guestPrintableRead" to setOf("method", "paths", "auth", "client", "requiredWhenGuest", "webRequired"),
+            )
+    }
 }
 
 fun <T : Any> bindGatewayConfig(
