@@ -90,7 +90,9 @@ class OriginVerificationFilter(
         // 박을 수 없으므로 CSRF 노출 X. 따라서 토큰 헤더 인증은 Origin 검증을 면제한다.
         // 모바일 앱(BBR/mirror-view) 등 native 클라이언트는 Origin 헤더를 안 보내지만 Authorization
         // 헤더로 인증하므로 이 분기로 통과.
-        val authorization = request.headers.getFirst("Authorization")
+        val authorizationValues = request.headers[HttpHeaders.AUTHORIZATION].orEmpty()
+        val authorization = authorizationValues.singleOrNull()
+        val hasAuthorizationHeader = request.headers.containsKey(HttpHeaders.AUTHORIZATION)
         val hasInstallationIdHeader = request.headers.containsKey(INSTALLATION_ID_HEADER)
         if (authorization != null && BEARER_PATTERN.matches(authorization) && !hasInstallationIdHeader) {
             return chain.filter(exchange)
@@ -103,7 +105,7 @@ class OriginVerificationFilter(
         if (candidate == null) {
             if (
                 isAllowedGuestMutation(method, path) &&
-                authorization.isNullOrBlank() &&
+                !hasAuthorizationHeader &&
                 !hasAuthCookie(exchange) &&
                 hasValidInstallationId(exchange)
             ) {

@@ -41,6 +41,7 @@ class OriginVerificationFilterTest {
         origin: String? = null,
         referer: String? = null,
         authorization: String? = null,
+        authorizations: List<String>? = null,
         installationId: String? = null,
         csrfCookie: String? = null,
         csrfHeader: String? = null,
@@ -51,7 +52,10 @@ class OriginVerificationFilterTest {
         val builder = MockServerHttpRequest.method(method, path)
         origin?.let { builder.header("Origin", it) }
         referer?.let { builder.header("Referer", it) }
-        authorization?.let { builder.header("Authorization", it) }
+        when {
+            authorizations != null -> builder.header("Authorization", *authorizations.toTypedArray())
+            authorization != null -> builder.header("Authorization", authorization)
+        }
         installationId?.let { builder.header("X-CBT-Installation-Id", it) }
         when {
             csrfHeaders != null -> builder.header("X-XSRF-TOKEN", *csrfHeaders.toTypedArray())
@@ -334,6 +338,35 @@ class OriginVerificationFilterTest {
     }
 
     @Test
+    fun `bearer bypass requires exactly one canonical Authorization value`() {
+        val singleBearer =
+            build(
+                method = HttpMethod.POST,
+                path = "/api/v1/cbt/attempts",
+                authorizations = listOf("Bearer native-token"),
+            )
+
+        assertThat(execute(singleBearer)).isTrue()
+        assertThat(singleBearer.response.statusCode).isNotEqualTo(HttpStatus.FORBIDDEN)
+
+        listOf(
+            listOf("Bearer native-token", "Bearer second-token"),
+            listOf("Bearer native-token", ""),
+            listOf("Bearer native-token", "Basic credentials"),
+        ).forEach { authorizations ->
+            val exchange =
+                build(
+                    method = HttpMethod.POST,
+                    path = "/api/v1/cbt/attempts",
+                    authorizations = authorizations,
+                )
+
+            assertThat(execute(exchange)).describedAs("multiple Authorization values must fail").isFalse()
+            assertThat(exchange.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        }
+    }
+
+    @Test
     fun `browserless installation id passes only the exact anonymous CBT mutation routes`() {
         listOf(
             HttpMethod.POST to "/api/v1/cbt/attempts",
@@ -345,6 +378,43 @@ class OriginVerificationFilterTest {
 
             assertThat(execute(exchange)).describedAs("$method $path native guest request must pass").isTrue()
             assertThat(exchange.response.statusCode).isNotEqualTo(HttpStatus.FORBIDDEN)
+        }
+    }
+
+    @Test
+    fun `browserless installation id requires Authorization to be completely absent on every exact route`() {
+        val exactRoutes =
+            listOf(
+                HttpMethod.POST to "/api/v1/cbt/attempts",
+                HttpMethod.PUT to "/api/v1/cbt/attempts/1/answers/2",
+                HttpMethod.POST to "/api/v1/cbt/attempts/1/answers/2/check",
+                HttpMethod.POST to "/api/v1/cbt/attempts/1/submit",
+            )
+        val presentAuthorizationValues =
+            listOf(
+                listOf(""),
+                listOf("   "),
+                listOf("", ""),
+                listOf("", "Bearer native-token"),
+                listOf("", "Basic credentials"),
+                listOf("Bearer native-token", ""),
+            )
+
+        exactRoutes.forEach { (method, path) ->
+            presentAuthorizationValues.forEach { authorizations ->
+                val exchange =
+                    build(
+                        method = method,
+                        path = path,
+                        authorizations = authorizations,
+                        installationId = VALID_INSTALLATION_ID,
+                    )
+
+                assertThat(execute(exchange))
+                    .describedAs("$method $path with present Authorization must fail")
+                    .isFalse()
+                assertThat(exchange.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+            }
         }
     }
 
