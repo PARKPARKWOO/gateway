@@ -44,6 +44,8 @@ class OriginVerificationFilterTest {
         installationId: String? = null,
         csrfCookie: String? = null,
         csrfHeader: String? = null,
+        csrfCookies: List<String>? = null,
+        csrfHeaders: List<String>? = null,
         authCookieName: String? = null,
     ): MockServerWebExchange {
         val builder = MockServerHttpRequest.method(method, path)
@@ -51,8 +53,13 @@ class OriginVerificationFilterTest {
         referer?.let { builder.header("Referer", it) }
         authorization?.let { builder.header("Authorization", it) }
         installationId?.let { builder.header("X-CBT-Installation-Id", it) }
-        csrfHeader?.let { builder.header("X-XSRF-TOKEN", it) }
-        csrfCookie?.let { builder.cookie(HttpCookie("XSRF-TOKEN", it)) }
+        when {
+            csrfHeaders != null -> builder.header("X-XSRF-TOKEN", *csrfHeaders.toTypedArray())
+            csrfHeader != null -> builder.header("X-XSRF-TOKEN", csrfHeader)
+        }
+        (csrfCookies ?: csrfCookie?.let(::listOf).orEmpty()).forEach {
+            builder.cookie(HttpCookie("XSRF-TOKEN", it))
+        }
         authCookieName?.let { builder.cookie(HttpCookie(it, "auth-cookie-sentinel")) }
         return MockServerWebExchange.from(builder.build())
     }
@@ -218,6 +225,70 @@ class OriginVerificationFilterTest {
     }
 
     @Test
+    fun `unsafe CBT request requires exactly one CSRF cookie and one header`() {
+        val duplicateCookies =
+            build(
+                method = HttpMethod.POST,
+                path = CBT_PATH,
+                origin = ALLOWED_ORIGIN,
+                csrfCookies = listOf(VALID_CSRF_TOKEN, VALID_CSRF_TOKEN),
+                csrfHeader = VALID_CSRF_TOKEN,
+            )
+        val duplicateHeaders =
+            build(
+                method = HttpMethod.POST,
+                path = CBT_PATH,
+                origin = ALLOWED_ORIGIN,
+                csrfCookie = VALID_CSRF_TOKEN,
+                csrfHeaders = listOf(VALID_CSRF_TOKEN, VALID_CSRF_TOKEN),
+            )
+
+        assertThat(execute(duplicateCookies)).isFalse()
+        assertThat(duplicateCookies.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        assertThat(execute(duplicateHeaders)).isFalse()
+        assertThat(duplicateHeaders.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @Test
+    fun `unsafe CBT request rejects malformed CSRF cookie and header values`() {
+        listOf(
+            "",
+            " ",
+            " $VALID_CSRF_TOKEN",
+            "$VALID_CSRF_TOKEN ",
+            "$VALID_CSRF_TOKEN=",
+            "+${VALID_CSRF_TOKEN.drop(1)}",
+            "/${VALID_CSRF_TOKEN.drop(1)}",
+            "A".repeat(42),
+            "A".repeat(44),
+            "A".repeat(42) + "B",
+            "csrf-token-sentinel",
+        ).forEach { invalid ->
+            val invalidCookie =
+                build(
+                    method = HttpMethod.POST,
+                    path = CBT_PATH,
+                    origin = ALLOWED_ORIGIN,
+                    csrfCookie = invalid,
+                    csrfHeader = VALID_CSRF_TOKEN,
+                )
+            val invalidHeader =
+                build(
+                    method = HttpMethod.POST,
+                    path = CBT_PATH,
+                    origin = ALLOWED_ORIGIN,
+                    csrfCookie = VALID_CSRF_TOKEN,
+                    csrfHeader = invalid,
+                )
+
+            assertThat(execute(invalidCookie)).describedAs("invalid cookie=$invalid").isFalse()
+            assertThat(invalidCookie.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+            assertThat(execute(invalidHeader)).describedAs("invalid header=$invalid").isFalse()
+            assertThat(invalidHeader.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        }
+    }
+
+    @Test
     fun `disallowed origin is forbidden even with matching token for every unsafe CBT method`() {
         UNSAFE_METHODS.forEach { method ->
             val exchange =
@@ -263,60 +334,106 @@ class OriginVerificationFilterTest {
     }
 
     @Test
-    fun `browserless CBT guest with a valid installation id passes every unsafe method`() {
-        UNSAFE_METHODS.forEach { method ->
-            val exchange = build(method = method, path = CBT_PATH, installationId = VALID_INSTALLATION_ID)
+    fun `browserless installation id passes only the exact anonymous CBT mutation routes`() {
+        listOf(
+            HttpMethod.POST to "/api/v1/cbt/attempts",
+            HttpMethod.PUT to "/api/v1/cbt/attempts/1/answers/2",
+            HttpMethod.POST to "/api/v1/cbt/attempts/1/answers/2/check",
+            HttpMethod.POST to "/api/v1/cbt/attempts/1/submit",
+        ).forEach { (method, path) ->
+            val exchange = build(method = method, path = path, installationId = VALID_INSTALLATION_ID)
 
-            assertThat(execute(exchange)).describedAs("$method native guest request must pass").isTrue()
+            assertThat(execute(exchange)).describedAs("$method $path native guest request must pass").isTrue()
             assertThat(exchange.response.statusCode).isNotEqualTo(HttpStatus.FORBIDDEN)
         }
     }
 
     @Test
-    fun `browserless installation id does not create an anonymous admin CBT bypass`() {
-        val exchange =
+    fun `browserless installation id rejects non-contract methods and paths`() {
+        listOf(
+            HttpMethod.PATCH to "/api/v1/cbt/attempts/1/answers/2",
+            HttpMethod.DELETE to "/api/v1/cbt/attempts/1/answers/2",
+            HttpMethod.POST to "/api/v1/cbt/attempts/1/claim",
+            HttpMethod.POST to "/api/v1/cbt/me/wrong-answers/2/resolve",
+            HttpMethod.POST to "/api/v1/cbt/me/wrong-answers/retry-attempt",
+            HttpMethod.POST to "/api/v1/cbt/printable-sets",
+            HttpMethod.POST to "/api/v1/admin/cbt/exams",
+            HttpMethod.POST to "/api/v1/cbt",
+            HttpMethod.POST to "/api/v1/cbt/attempts/0/submit",
+            HttpMethod.POST to "/api/v1/cbt/attempts/-1/submit",
+            HttpMethod.POST to "/api/v1/cbt/attempts/not-a-number/submit",
+            HttpMethod.POST to "/api/v1/cbt/attempts/${"9".repeat(40)}/submit",
+            HttpMethod.PUT to "/api/v1/cbt/attempts/1/answers/0",
+            HttpMethod.PUT to "/api/v1/cbt/attempts/1/answers/not-a-number",
+            HttpMethod.POST to "/api/v1/cbt/attempts/1/answers/2",
+            HttpMethod.PUT to "/api/v1/cbt/attempts/1/answers/2/check",
+            HttpMethod.POST to "/api/v1/cbt/attempts/1/submit/extra",
+            HttpMethod.POST to "/api/v1/cbt/attempts/1/future",
+            HttpMethod.POST to "/api/v1/cbt/future",
+        ).forEach { (method, path) ->
+            val exchange = build(method = method, path = path, installationId = VALID_INSTALLATION_ID)
+
+            assertThat(execute(exchange)).describedAs("$method $path must not use the guest bypass").isFalse()
+            assertThat(exchange.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        }
+    }
+
+    @Test
+    fun `browserless installation id rejects mixed bearer or auth cookie classification`() {
+        val bearer =
             build(
                 method = HttpMethod.POST,
-                path = "/api/v1/admin/cbt/exams",
+                path = "/api/v1/cbt/attempts",
                 installationId = VALID_INSTALLATION_ID,
+                authorization = "Bearer native-token",
+            )
+        val authCookie =
+            build(
+                method = HttpMethod.POST,
+                path = "/api/v1/cbt/attempts",
+                installationId = VALID_INSTALLATION_ID,
+                authCookieName = "accessToken",
             )
 
-        assertThat(execute(exchange)).isFalse()
-        assertThat(exchange.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        assertThat(execute(bearer)).isFalse()
+        assertThat(bearer.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        assertThat(execute(authCookie)).isFalse()
+        assertThat(authCookie.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
     @Test
-    fun `browserless CBT guest ignores unrelated cookies when installation id is valid`() {
-        UNSAFE_METHODS.forEach { method ->
+    fun `browserless CBT guest ignores unrelated cookies on an exact mutation route`() {
+        val exchange =
+            build(
+                method = HttpMethod.PUT,
+                path = "/api/v1/cbt/attempts/1/answers/2",
+                installationId = VALID_INSTALLATION_ID,
+                authCookieName = "unrelatedCookie",
+            )
+
+        assertThat(execute(exchange)).isTrue()
+        assertThat(exchange.response.statusCode).isNotEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @Test
+    fun `exact guest mutation route rejects a missing or malformed installation id`() {
+        listOf(
+            null,
+            "too-short",
+            "invalid.installation.id.12345",
+            "a".repeat(129),
+        ).forEach { installationId ->
             val exchange =
                 build(
-                    method = method,
-                    path = CBT_PATH,
-                    installationId = VALID_INSTALLATION_ID,
-                    authCookieName = "unrelatedCookie",
+                    method = HttpMethod.POST,
+                    path = "/api/v1/cbt/attempts",
+                    installationId = installationId,
                 )
 
-            assertThat(execute(exchange)).isTrue()
-            assertThat(exchange.response.statusCode).isNotEqualTo(HttpStatus.FORBIDDEN)
-        }
-    }
-
-    @Test
-    fun `browserless CBT guest without a syntactically valid installation id is forbidden for every unsafe method`() {
-        UNSAFE_METHODS.forEach { method ->
-            listOf(
-                null,
-                "too-short",
-                "invalid.installation.id.12345",
-                "a".repeat(129),
-            ).forEach { installationId ->
-                val exchange = build(method = method, path = CBT_PATH, installationId = installationId)
-
-                assertThat(execute(exchange))
-                    .describedAs("$method with installation id presence=${installationId != null} must be blocked")
-                    .isFalse()
-                assertThat(exchange.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
-            }
+            assertThat(execute(exchange))
+                .describedAs("installation id presence=${installationId != null} must be blocked")
+                .isFalse()
+            assertThat(exchange.response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
         }
     }
 
@@ -395,7 +512,7 @@ class OriginVerificationFilterTest {
         const val CBT_PATH = "/api/v1/cbt/attempts"
         const val NON_CBT_PATH = "/api/v1/program/information"
         const val ALLOWED_ORIGIN = "https://mirror-view.platformholder.site"
-        const val VALID_CSRF_TOKEN = "csrf-token-sentinel"
+        const val VALID_CSRF_TOKEN = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         const val VALID_INSTALLATION_ID = "installation_12345678901234567890"
     }
 }

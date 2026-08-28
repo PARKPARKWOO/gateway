@@ -37,13 +37,31 @@ class CsrfTokenCookieFilterTest {
     }
 
     @Test
-    fun `token matching accepts equal values and rejects unequal values`() {
+    fun `token matching accepts only equal canonical unpadded 32 byte base64url values`() {
         val service = SecureCsrfTokenService(CsrfTokenProperties())
         val token = service.generate()
+        val otherToken =
+            Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32) { 1 })
 
         assertThat(service.matches(token, token)).isTrue()
-        assertThat(service.matches(token, "${token}x")).isFalse()
-        assertThat(service.matches("", "")).isFalse()
+        assertThat(service.matches(token, otherToken)).isFalse()
+        listOf(
+            "",
+            " ",
+            " $token",
+            "$token ",
+            "$token=",
+            "+${token.drop(1)}",
+            "/${token.drop(1)}",
+            "A".repeat(42),
+            "A".repeat(44),
+            "A".repeat(42) + "B",
+            "csrf-token-sentinel",
+        ).forEach { invalid ->
+            assertThat(service.matches(invalid, invalid)).describedAs("invalid=$invalid").isFalse()
+            assertThat(service.matches(token, invalid)).describedAs("invalid header=$invalid").isFalse()
+            assertThat(service.matches(invalid, token)).describedAs("invalid cookie=$invalid").isFalse()
+        }
     }
 
     @Test

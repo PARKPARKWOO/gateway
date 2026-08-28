@@ -2,7 +2,6 @@ package org.woo.gateway.security
 
 import org.springframework.stereotype.Component
 import org.woo.gateway.config.CsrfTokenProperties
-import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
@@ -38,14 +37,26 @@ class SecureCsrfTokenService(
         cookieValue: String,
         headerValue: String,
     ): Boolean {
-        if (cookieValue.isEmpty() || headerValue.isEmpty()) return false
-        return MessageDigest.isEqual(
-            cookieValue.toByteArray(StandardCharsets.UTF_8),
-            headerValue.toByteArray(StandardCharsets.UTF_8),
-        )
+        val cookieBytes = decodeCanonical(cookieValue) ?: return false
+        val headerBytes = decodeCanonical(headerValue) ?: return false
+        return MessageDigest.isEqual(cookieBytes, headerBytes)
+    }
+
+    private fun decodeCanonical(value: String): ByteArray? {
+        if (!TOKEN_PATTERN.matches(value)) return null
+        val decoded =
+            try {
+                Base64.getUrlDecoder().decode(value)
+            } catch (_: IllegalArgumentException) {
+                return null
+            }
+        if (decoded.size != TOKEN_BYTES) return null
+        if (Base64.getUrlEncoder().withoutPadding().encodeToString(decoded) != value) return null
+        return decoded
     }
 
     private companion object {
         const val TOKEN_BYTES = 32
+        val TOKEN_PATTERN = Regex("[A-Za-z0-9_-]{43}")
     }
 }

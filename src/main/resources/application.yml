@@ -40,6 +40,7 @@ spring:
               - PATCH
             allowedHeaders: "*"
             allowCredentials: true
+            # Set-Cookie is a Fetch forbidden response header; listing it here does not make it JS-readable.
             exposed-headers:
               - "Set-Cookie"
       default-filters:

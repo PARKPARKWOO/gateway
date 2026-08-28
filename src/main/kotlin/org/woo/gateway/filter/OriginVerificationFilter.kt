@@ -63,6 +63,13 @@ class OriginVerificationFilter(
         private val AUTH_COOKIE_NAMES = setOf("accessToken", "refreshToken")
         private val INSTALLATION_ID_PATTERN = Regex("[A-Za-z0-9_-]{20,128}")
         private val BEARER_PATTERN = Regex("Bearer [^\\s]+", RegexOption.IGNORE_CASE)
+        private const val POSITIVE_ID_GROUP = "([1-9][0-9]*)"
+        private val GUEST_ANSWER_PATH =
+            Regex("^/api/v1/cbt/attempts/$POSITIVE_ID_GROUP/answers/$POSITIVE_ID_GROUP$")
+        private val GUEST_CHECK_PATH =
+            Regex("^/api/v1/cbt/attempts/$POSITIVE_ID_GROUP/answers/$POSITIVE_ID_GROUP/check$")
+        private val GUEST_SUBMIT_PATH =
+            Regex("^/api/v1/cbt/attempts/$POSITIVE_ID_GROUP/submit$")
     }
 
     override fun filter(
@@ -84,7 +91,8 @@ class OriginVerificationFilter(
         // 모바일 앱(BBR/mirror-view) 등 native 클라이언트는 Origin 헤더를 안 보내지만 Authorization
         // 헤더로 인증하므로 이 분기로 통과.
         val authorization = request.headers.getFirst("Authorization")
-        if (authorization != null && BEARER_PATTERN.matches(authorization)) {
+        val hasInstallationIdHeader = request.headers.containsKey(INSTALLATION_ID_HEADER)
+        if (authorization != null && BEARER_PATTERN.matches(authorization) && !hasInstallationIdHeader) {
             return chain.filter(exchange)
         }
 
@@ -94,7 +102,7 @@ class OriginVerificationFilter(
 
         if (candidate == null) {
             if (
-                isPublicCbtPath(path) &&
+                isAllowedGuestMutation(method, path) &&
                 authorization.isNullOrBlank() &&
                 !hasAuthCookie(exchange) &&
                 hasValidInstallationId(exchange)
@@ -126,8 +134,28 @@ class OriginVerificationFilter(
     private fun isCbtPath(path: String): Boolean =
         CBT_PATH_PREFIXES.any { prefix -> path == prefix || path.startsWith("$prefix/") }
 
-    private fun isPublicCbtPath(path: String): Boolean =
-        path == PUBLIC_CBT_PATH_PREFIX || path.startsWith("$PUBLIC_CBT_PATH_PREFIX/")
+    private fun isAllowedGuestMutation(
+        method: HttpMethod,
+        path: String,
+    ): Boolean =
+        when (method) {
+            HttpMethod.POST ->
+                path == "$PUBLIC_CBT_PATH_PREFIX/attempts" ||
+                    matchesPositiveIdPath(GUEST_CHECK_PATH, path) ||
+                    matchesPositiveIdPath(GUEST_SUBMIT_PATH, path)
+            HttpMethod.PUT -> matchesPositiveIdPath(GUEST_ANSWER_PATH, path)
+            else -> false
+        }
+
+    private fun matchesPositiveIdPath(
+        pattern: Regex,
+        path: String,
+    ): Boolean =
+        pattern
+            .matchEntire(path)
+            ?.groupValues
+            ?.drop(1)
+            ?.all { value -> value.toLongOrNull()?.let { it > 0 } == true } == true
 
     private fun hasAuthCookie(exchange: ServerWebExchange): Boolean =
         AUTH_COOKIE_NAMES.any(exchange.request.cookies::containsKey)
@@ -138,8 +166,11 @@ class OriginVerificationFilter(
             ?.let(INSTALLATION_ID_PATTERN::matches) == true
 
     private fun hasMatchingToken(exchange: ServerWebExchange): Boolean {
-        val cookieValue = exchange.request.cookies.getFirst(tokenProperties.cookieName)?.value ?: return false
-        val headerValue = exchange.request.headers.getFirst(tokenProperties.headerName) ?: return false
+        val cookieValues = exchange.request.cookies[tokenProperties.cookieName].orEmpty()
+        val headerValues = exchange.request.headers[tokenProperties.headerName].orEmpty()
+        if (cookieValues.size != 1 || headerValues.size != 1) return false
+        val cookieValue = cookieValues.single().value
+        val headerValue = headerValues.single()
         return tokenService.matches(cookieValue, headerValue)
     }
 

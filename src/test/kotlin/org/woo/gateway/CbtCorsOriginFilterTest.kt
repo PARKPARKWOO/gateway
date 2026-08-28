@@ -35,6 +35,7 @@ class CbtCorsOriginFilterTest {
                         cors.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                         cors.allowedHeaders = listOf("*")
                         cors.allowCredentials = true
+                        cors.exposedHeaders = listOf("Set-Cookie")
                     },
                 )
             },
@@ -80,7 +81,7 @@ class CbtCorsOriginFilterTest {
         assertThat(exchange.response.headers.accessControlAllowMethods).contains(HttpMethod.POST)
         assertThat(exchange.response.headers.accessControlAllowHeaders)
             .contains("content-type", "idempotency-key", "x-xsrf-token")
-        assertThat(exchange.response.headers.accessControlExposeHeaders).isEmpty()
+        assertThat(exchange.response.headers.accessControlExposeHeaders).containsExactly("Set-Cookie")
     }
 
     @ParameterizedTest
